@@ -249,11 +249,11 @@ class AgrFile():
                 print "Graph %d: %d data sets" % (i, n_sets)
             for j, set in enumerate(graph.sets):
                 print "    Set G%dS%d (%s): %d data points" \
-                % (i, j, set.get_type(), self.get_dataset(i,j).get_n_rows())
-                comment = set.get_comment()
+                % (i, j, set._get_type(), self.get_dataset(i,j).get_n_rows())
+                comment = set._get_comment()
                 if comment is not None and comment != "":
                     print "        comment: %s" % comment
-                legend = set.get_legend()
+                legend = set._get_legend()
                 if legend is not None and legend != "":
                     print "        legend : %s" % legend
 
@@ -321,7 +321,7 @@ class AgrFile():
         for g, graph in enumerate(self.graphs):
             for s, set in enumerate(graph.sets):
                 expected_datasets.append((g, s))
-                expected_types.append(set.get_type())
+                expected_types.append(set._get_type())
         expected_datasets.reverse() # so that we can pop
         expected_types.reverse()
         try:
@@ -923,6 +923,29 @@ class AgrSet():
                 % (match.group(1), s, match.group(3))
             else:
                 logging.error("Unexpected format for AgrSet lines")
+
+    def _get_type(self):
+        """ Return the type (xy, xydx, ...), for the set"""
+        for line in self.lines:
+            match = self._rx_type.match(line)
+            if match:
+                return match.group(1)
+
+    def _get_comment(self):
+        """ Return the current comment string for the set """
+        for line in self.lines:
+            match = self._rx_comment.match(line)
+            if match:
+                return match.group(1)
+        return None
+
+    def _get_legend(self):
+        """ Return the current legend string for the set """
+        for line in self.lines:
+            match = self._rx_legend.match(line)
+            if match:
+                return match.group(1)
+        return None
 
     def update_properties(self, **kwargs):
         """ Replace set properties according to the given keywords.
