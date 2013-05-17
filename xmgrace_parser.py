@@ -72,17 +72,22 @@
         >>> agr.edit_header()
 
         # read data of dataset G0S0 into numpy arrays
-        >>> x, y = agr.get_data(0,0) # read data into numpy arrays
+        >>> x, y = agr.get_data(0,0)
 
         # overwrite data of dataset G0S1
         >>> agr.set_data(0, 1, x, y, comment='new data')
 
         # overwrite data of dataset G0S0
-        >>> agr.set_data(0, 1, filename='new.dat', columns=(0,1), legend='file')
+        >>> agr.set_data(0, 0, filename='new.dat', columns=(0,1), legend='new')
 
         # change color of G0S0
         >>> g0s0 = agr.get_set(0,0)
         >>> g0s0.update_properties(line_color=2, symbol_color=2)
+
+        # or, using the dictionary interface (less efficient if multiple
+        # properties are set)
+        >>> g0s0['line_color'] = 2
+        >>> g0s0['symbol_color'] = 2
 
         # switch G0S0 and G0S1
         >>> agr.reorder_sets(0, (1,0))
@@ -107,7 +112,6 @@ from datetime import datetime
 
 EDITOR = os.environ.get('EDITOR','vim')
 
-# TODO: implement dictionary interface to AgrSet (setting, getting properties)
 # TODO: add methods/dictionary interface to other objects
 # TODO: test with all agr files I can come across
 # TODO: make pip installable (with script hook)
@@ -120,7 +124,7 @@ class AgrFile():
         An agr file as written by the xmgrace program has the following
         structure:
         1. the project "header" lines, which declare the page layout, fonts,
-           colors, default linewidths, etc, ending with the file timestamp. 
+           colors, default linewidths, etc, ending with the file timestamp.
         2. an array of "drawing objects" (e.g. string annotation). For each
            drawing object, there are several lines specifying the properties of
            that object
@@ -836,6 +840,12 @@ class AgrSet():
     """ Array of lines from the agr file representing the properties (i.e. not
         the actual data) of a dataset in a graph (stored in the lines
         attribute)
+
+        The class provides a minimum dictionary interface to the properties.
+        They keys for all available properties are given by the `keys` method.
+        Note that when getting/setting multiple properties at the same time, it
+        is more efficient to use the `get_properties` and `update_properties`
+        methods.
     """
 
     # regexes for getters of specific property lines
@@ -850,28 +860,28 @@ class AgrSet():
     (?P<sep> \s+)          # ' '
     (?P<val> [a-z]+)       # 'both'
     $""", re.X)
-    _rx_str_line  = re.compile(r""" # 'string' regex 
+    _rx_str_line  = re.compile(r""" # 'string' regex
     ^ # regex matches e.g. '@    s0 avalue prepend ""'
     (?P<pre> @\s*s\d+\s+)  # '@    s0 '
     (?P<kwd> [\w\s]+\w)    # 'avalue prepend'
     (?P<sep> \s+)          # ' '
     (?P<val> ".*")         # '""'
     $""", re.X)
-    _rx_pnt_line  = re.compile(r""" # 'point' regex 
+    _rx_pnt_line  = re.compile(r""" # 'point' regex
     ^ # regex matches e.g. 's0 avalue offset 0.000000 , 0.000000'
     (?P<pre> @\s*s\d+\s+)                 # '@    s0 '
     (?P<kwd> [\w\s]+\w)                   # 'avalue offset'
     (?P<sep> \s+)                         # ' '
     (?P<val> ([\d.+-]+\s*,)+\s*[\d.+-]+)  # '0.000000 , 0.000000'
     $""", re.X)
-    _rx_int_line  = re.compile(r""" # 'integer' regex 
+    _rx_int_line  = re.compile(r""" # 'integer' regex
     ^ # regex matches e.g. '@    s0 symbol fill pattern 1'
     (?P<pre> @\s*s\d+\s+)  # '@    s0 '
     (?P<kwd> [\w\s]+\w)    # 'symbol fill pattern'
     (?P<sep> \s+)          # ' '
     (?P<val> [\d+-]+)      # '1'
     $""", re.X)
-    _rx_num_line  = re.compile(r""" # 'numeral' (float) regex 
+    _rx_num_line  = re.compile(r""" # 'numeral' (float) regex
     ^ # regex matches e.g. '@    s0 symbol size 0.250000'
     (?P<pre> @\s*s\d+\s+)  # '@    s0 '
     (?P<kwd> [\w\s]+\w)    # 'symbol size'
@@ -914,43 +924,6 @@ class AgrSet():
             else:
                 logging.error("Unexpected format for AgrSet lines")
 
-    def get_type(self):
-        """ Return the type (xy, xydx, ...), for the set"""
-        for line in self.lines:
-            match = self._rx_type.match(line)
-            if match:
-                return match.group(1)
-
-    def get_comment(self):
-        """ Return the current comment string for the set """
-        for line in self.lines:
-            match = self._rx_comment.match(line)
-            if match:
-                return match.group(1)
-        return None
-
-    def set_comment(self, comment):
-        """ Set a new comment string for the set. Equivalent to
-            `update_properties(comment=comment)`
-        """
-        _update_properties_in_lines(self.lines, [self._rx_str_line],
-        [self._rx_str_val], comment=comment)
-
-    def get_legend(self):
-        """ Return the current legend string for the set """
-        for line in self.lines:
-            match = self._rx_legend.match(line)
-            if match:
-                return match.group(1)
-        return None
-
-    def set_legend(self, legend):
-        """ Set a new legend string for the set. Equivalent to
-            `update_properties(legend=legend)`
-        """
-        _update_properties_in_lines(self.lines, [self._rx_str_line],
-        [self._rx_str_val], legend=legend)
-
     def update_properties(self, **kwargs):
         """ Replace set properties according to the given keywords.
 
@@ -977,6 +950,22 @@ class AgrSet():
             _update_properties_in_lines(self.lines, regexes, checks, **kwargs)
         except TypeError:
             raise
+
+    def __getitem__(self, key):
+        """ Look up a property """
+        return self.get_properties([key])[0]
+
+    def __setitem__(self, key, value):
+        """ Set a property """
+        self.update_properties(**{key: value})
+
+    def __iter__(self):
+        """ Iterator (not implemented) """
+        raise NotImplementedError
+
+    def __delitem__(self, key):
+        """ Dictionary deletion (not implemented) """
+        raise NotImplementedError
 
     def get_properties(self, properties):
         """ Given list of set properties name, return an list of their values
@@ -1144,7 +1133,7 @@ class AgrDataSet():
 
     def set_data(self, *numpy_arrays, **kwargs):
         """ Set the data from the data set from the given numpy arrays
-        
+
             You may give 'fmt' as a keyword argument, to indicate how the data
             should  be formatted. The value for 'fmt' may be a single format
             (%10.5f), a sequence of formats, or a multi-format string, e.g.
@@ -1238,7 +1227,7 @@ def _update_properties_in_lines(lines, regexes, checks, **kwargs):
                         logging.debug("Setting %s for %s", val, line_keyword)
                         lines[i] = "%s%s%s%s\n" % (pre, line_keyword, sep, val)
                     else:
-                        raise ValueError("Failed check of value %s for key %s" 
+                        raise ValueError("Failed check of value %s for key %s"
                                         % (val, keyword))
                     del kwargs[keyword]
             if matched:

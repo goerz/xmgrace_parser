@@ -57,17 +57,22 @@ use the [pygrace][3] module.
     >>> agr.edit_header()
 
     # read data of dataset G0S0 into numpy arrays
-    >>> x, y = agr.get_data(0,0) # read data into numpy arrays
+    >>> x, y = agr.get_data(0,0)
 
     # overwrite data of dataset G0S1
     >>> agr.set_data(0, 1, x, y, comment='new data')
 
     # overwrite data of dataset G0S0
-    >>> agr.set_data(0, 1, filename='new.dat', columns=(0,1), legend='file')
+    >>> agr.set_data(0, 0, filename='new.dat', columns=(0,1), legend='new')
 
     # change color of G0S0
     >>> g0s0 = agr.get_set(0,0)
     >>> g0s0.update_properties(line_color=2, symbol_color=2)
+
+    # or, using the dictionary interface (less efficient if multiple
+    # properties are set)
+    >>> g0s0['line_color'] = 2
+    >>> g0s0['symbol_color'] = 2
 
     # switch G0S0 and G0S1
     >>> agr.reorder_sets(0, (1,0))
