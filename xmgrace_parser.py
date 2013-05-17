@@ -107,6 +107,11 @@ from datetime import datetime
 
 EDITOR = os.environ.get('EDITOR','vim')
 
+# TODO: implement dictionary interface to AgrSet (setting, getting properties)
+# TODO: add methods/dictionary interface to other objects
+# TODO: test with all agr files I can come across
+# TODO: make pip installable (with script hook)
+
 ############################### Main Class ####################################
 
 class AgrFile():
@@ -973,6 +978,38 @@ class AgrSet():
         except TypeError:
             raise
 
+    def get_properties(self, properties):
+        """ Given list of set properties name, return an list of their values
+            (as strings)
+        """
+        regexes = [self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
+                   self._rx_int_line, self._rx_num_line]
+        logging.debug("Regex 0: literal")
+        logging.debug("Regex 1: string")
+        logging.debug("Regex 2: point")
+        logging.debug("Regex 3: integer")
+        logging.debug("Regex 4: numeral")
+        try:
+            return _get_properties_in_lines(self.lines, regexes, properties)
+        except TypeError:
+            raise
+        except KeyError:
+            raise
+
+    def keys(self):
+        """ Return the array of available set properties """
+        regexes = [self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
+                   self._rx_int_line, self._rx_num_line]
+        logging.debug("Regex 0: literal")
+        logging.debug("Regex 1: string")
+        logging.debug("Regex 2: point")
+        logging.debug("Regex 3: integer")
+        logging.debug("Regex 4: numeral")
+        try:
+            return _keys_in_lines(self.lines, regexes)
+        except TypeError:
+            raise
+
     def __str__(self):
         """ Return the multi-line string (partial agr file) for the set
         """
@@ -1210,6 +1247,105 @@ def _update_properties_in_lines(lines, regexes, checks, **kwargs):
             logging.debug("No regex matched line %d", i)
     if len(kwargs.keys()) > 0:
         raise TypeError("Unexpected keyword arguments: %s" % kwargs.keys())
+
+
+def _get_properties_in_lines(lines, regexes, properties):
+    """ Parse each line in `lines` as a string describing a key-value-pair,
+        search for the given properties, and return an array of their
+        respective values (as strings)
+
+        Arguments:
+        lines:       Array of strings, each of the form "{pre}{kwd}{sep}{val}",
+                     that is a line-prefix, a keyword/property (which my
+                     include spaces), a separator, and a value
+        regexes:     Array of regular expressions that describe the possible
+                     structures of the lines. Each regular expression must
+                     contain the named groups 'pre', 'kwd', 'sep', and 'val',
+                     which are used to cut up the line into its constituents
+        properties:  Array of property names to get value for
+    """
+    logging.debug("_get_properties_in_lines: properties: %s", str(properties))
+    result_dict = {}
+    result = []
+    # check regexes: must contain the necessary groups
+    for regex in regexes:
+        for group in ['pre', 'kwd', 'sep', 'val']:
+            if not group in regex.groupindex.keys():
+                raise ValueError("regex \n%s\n' "% regex.pattern
+                +"does not define groups 'pre', 'kwd', 'sep', 'val'")
+    for i, line in enumerate(lines):
+        matched = False
+        logging.debug("line %d: %s", i, line[:-1])
+        for ir, regex in enumerate(regexes):
+            match = regex.match(line)
+            if match:
+                matched = True
+                line_keyword = match.group('kwd')        # with spaces
+                keyword = line_keyword.replace(" ", "_") # without spaces
+                while "__" in keyword:
+                    keyword = keyword.replace('__', '_')
+                logging.debug("regex %d matched line %d (keyword %s)", ir, i,
+                              keyword)
+                if keyword in properties:
+                    logging.debug("keyword %s in properties", keyword)
+                    val = match.group('val')
+                    if val.startswith('"'):
+                        val = val[1:]
+                    if val.endswith('"'):
+                        val = val[:-1]
+                    result_dict[keyword] = val
+            if matched:
+                break # go to next line
+        if not matched:
+            logging.debug("No regex matched line %d", i)
+    for property in properties:
+        try:
+            result.append(result_dict[property])
+        except KeyError:
+            raise KeyError("No property '%s' found" % property)
+    return result
+
+
+def _keys_in_lines(lines, regexes):
+    """ Parse each line in `lines` as a string describing a key-value-pair,
+        and return a list of all keys.
+
+        Arguments:
+        lines:       Array of strings, each of the form "{pre}{kwd}{sep}{val}",
+                     that is a line-prefix, a keyword/property (which my
+                     include spaces), a separator, and a value
+        regexes:     Array of regular expressions that describe the possible
+                     structures of the lines. Each regular expression must
+                     contain the named groups 'pre', 'kwd', 'sep', and 'val',
+                     which are used to cut up the line into its constituents
+    """
+    logging.debug("_keys_in_lines")
+    result = []
+    # check regexes: must contain the necessary groups
+    for regex in regexes:
+        for group in ['pre', 'kwd', 'sep', 'val']:
+            if not group in regex.groupindex.keys():
+                raise ValueError("regex \n%s\n' "% regex.pattern
+                +"does not define groups 'pre', 'kwd', 'sep', 'val'")
+    for i, line in enumerate(lines):
+        matched = False
+        logging.debug("line %d: %s", i, line[:-1])
+        for ir, regex in enumerate(regexes):
+            match = regex.match(line)
+            if match:
+                matched = True
+                line_keyword = match.group('kwd')        # with spaces
+                keyword = line_keyword.replace(" ", "_") # without spaces
+                while "__" in keyword:
+                    keyword = keyword.replace('__', '_')
+                logging.debug("regex %d matched line %d (keyword %s)", ir, i,
+                              keyword)
+                result.append(keyword)
+            if matched:
+                break # go to next line
+        if not matched:
+            logging.debug("No regex matched line %d", i)
+    return result
 
 
 # TODO: write routine that converts latex-inspired strings into grace strings
