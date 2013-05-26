@@ -679,7 +679,6 @@ class AgrFile():
             print "Nothing written"
 
 
-
 ################## Auxiliary classes (substructures) ##########################
 
 
@@ -700,7 +699,7 @@ class AgrDrawingObject():
 
     def edit_lines(self):
         """ Load lines in EDITOR for editing"""
-        with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) \
+        with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
         as tmpfile:
             tmpfile.write(''.join(self.lines))
             tmpfile.flush()
@@ -728,7 +727,7 @@ class AgrRegion():
 
     def edit_lines(self):
         """ Load lines in EDITOR for editing"""
-        with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) \
+        with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
         as tmpfile:
             tmpfile.write(''.join(self.lines))
             tmpfile.flush()
@@ -786,7 +785,7 @@ class AgrGraph():
         """ Load lines in EDITOR for editing (remember that the lines to not
             include any of the sets; just the general graph properties)
         """
-        with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) \
+        with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
         as tmpfile:
             tmpfile.write(''.join(self.lines))
             tmpfile.flush()
@@ -901,7 +900,7 @@ class AgrSet():
 
     def edit_lines(self):
         """ Load lines in EDITOR for editing """
-        with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) \
+        with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
         as tmpfile:
             tmpfile.write(''.join(self.lines))
             tmpfile.flush()
