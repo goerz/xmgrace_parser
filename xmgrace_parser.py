@@ -144,7 +144,8 @@ class AgrFile():
 
         See also the section "3.1 General concepts" in the xmgrace user manual
 
-        The attributes of an AgrFile object mirror the above structure directly:
+        The attributes of an AgrFile object mirror the above structure
+        directly:
         header_lines   : array of strings containing the project header
                          description
         drawing_objects: array of AgrDrawingObject objects, which in turn store
@@ -740,18 +741,69 @@ class AgrRegion():
 
 
 class AgrGraph():
-    """ Structured array of lines from the agr file describing a single graph
+    """ Structured array of lines from the agr file describing a single graph.
 
-        the lines describing the graph are split in the graph properties,
-        and an array of sets appearing in the graph
+        The lines describing the graph are split in the graph properties,
+        and an array of sets appearing in the graph.
 
         attributes:
         lines : array of lines describing the graph properties
         sets  : array of AgrSet objects, which in turn store the lines
                 describing each set that is part of the graph
+
+        The class provides a minimum dictionary interface to the properties.
+        They keys for all available properties are given by the `keys` method.
+        Note that when getting/setting multiple properties at the same time, it
+        is more efficient to use the `get_properties` and `update_properties`
+        methods.
     """
 
+    # regexes for parsing
     _rx_set_start      = re.compile(r'@\s*s(\d+) hidden')
+    # regexes for property lines
+    _rx_fixed_point_format  = re.compile(r""" # 'fixedpoint format' regex
+    ^ # regex matches e.g. '@g0 fixedpoint format general general'
+    (?P<pre> @(g\d+)?\s+)               # '@g0 '
+    (?P<kwd> fixedpoint\s+format)       # 'fixedpoint format'
+    (?P<sep> \s+)                       # ' '
+    (?P<val> [a-zA-Z]+(\s+[a-zA-Z]+)+)  # 'false'
+    $""", re.X)
+    _rx_on_off_line  = re.compile(r""" # 'on/off' regex
+    ^ # regex matches '@    legend on' or '@    legend off'
+    (?P<pre> @(g\d+)?\s+) # '@    '
+    (?P<kwd> [\w\s]+\w    # 'legend on'
+    (?P<sep> \s+)         # ' '
+    (?P<val> (on|off)))   # 'on'
+    $""", re.X)
+    _rx_lit_line  = re.compile(r""" # 'literal' regex
+    ^ # regex matches e.g.'@g0 stacked false' or '@    xaxes scale Normal'
+    (?P<pre> @(g\d+)?\s+)  # '@g0 '
+    (?P<kwd> [\w\s]+\w)    # 'stacked'
+    (?P<sep> \s+)          # ' '
+    (?P<val> [a-zA-Z]+)    # 'false'
+    $""", re.X)
+    _rx_str_line  = re.compile(r""" # 'string' regex
+    ^ # regex matches e.g. '@    xaxis  ticklabel formula ""'
+    (?P<pre> @(g\d+)?\s+)  # '@    '
+    (?P<kwd> [\w\s]+\w)    # 'xaxis  ticklabel formula'
+    (?P<sep> \s+)          # ''
+    (?P<val> ".*")         # '""'
+    $""", re.X)
+    _rx_pnt_line  = re.compile(r""" # 'point' regex (2 or more values)
+    ^ # regex matches e.g. '@    xaxis  ticklabel offset 0.000000 , 0.000000'
+      # or '@    view 0.129412, 0.550000, 1.164706, 0.900000'
+    (?P<pre> @(g\d+)?\s+)                    # '@    '
+    (?P<kwd> [\w\s]+\w)                      # 'xaxis  ticklabel offset'
+    (?P<sep> \s+)                            # ' '
+    (?P<val> (\s*[\d.+-]+\s*,)+\s*[\d.+-]+)  # '0.000000 , 0.000000'
+    $""", re.X)
+    _rx_num_line  = re.compile(r""" # 'numeral' regex
+    ^ # regex matches e.g. '@g0 bar hgap 0.000000'
+    (?P<pre> @(g\d+)?\s+)  # '@g0 '
+    (?P<kwd> [\w\s]+\w)    # 'bar hgap'
+    (?P<sep> \s+)          # ' '
+    (?P<val> [\d.+-]+)     # '0.000000'
+    $""", re.X)
 
     def __init__(self, first_line):
         """ Create a new instance, based on the given `first_line` """
@@ -817,6 +869,9 @@ class AgrGraph():
                     break
 
     def _parse_line(self, line):
+        """ Parse a graph line, append to `lines` attribute to delegate to
+            AgrSet object (`sets` array)
+        """
         if self._state == "in_properties":
             if self._rx_set_start.match(line):
                 self.sets.append(AgrSet())
@@ -833,6 +888,72 @@ class AgrGraph():
             self._linelog('sets', 'lines')
         else:
             raise AgrParserError("Could not parse graph line")
+
+    def __getitem__(self, key):
+        """ Look up a property """
+        return self.get_properties([key])[0]
+
+    def __setitem__(self, key, value):
+        """ Set a property """
+        self.update_properties(**{key: value})
+
+    def __iter__(self):
+        """ Iterator (not implemented) """
+        raise NotImplementedError
+
+    def __delitem__(self, key):
+        """ Dictionary deletion (not implemented) """
+        raise NotImplementedError
+
+
+    def get_properties(self, properties):
+        """ Given list of graph property names, return an list of their values
+            (as strings)
+        """
+        regexes = [self._rx_fixed_point_format, self._rx_on_off_line,
+                   self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
+                   self._rx_num_line]
+        for i, rx in enumerate(regexes):
+            logging.debug("Regex %d: %s", i, rx.pattern.split("\n")[0])
+        try:
+            return _get_properties_in_lines(self.lines, regexes, properties)
+        except TypeError:
+            raise
+        except KeyError:
+            raise
+
+    def update_properties(self, **kwargs):
+        """ Replace graph properties according to the given keyword arguments.
+
+            E.g. we can change '@    title color 1' -> '@    title color 2'
+            by calling `update_properties(title_color=2)`. In general, the
+            allowed keys are those returned by the keys method.
+
+            If keyword arguments are supplied that don't have a matching
+            property in the set, a TypeError is raised.
+        """
+        logging.debug("* Update Set properties")
+        regexes = [self._rx_fixed_point_format, self._rx_on_off_line,
+                   self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
+                   self._rx_num_line]
+        for i, rx in enumerate(regexes):
+            logging.debug("Regex %d: %s", i, rx.pattern.split("\n")[0])
+        try:
+            _update_properties_in_lines(self.lines, regexes, **kwargs)
+        except TypeError:
+            raise
+
+    def keys(self):
+        """ Return the array of available graph properties """
+        regexes = [self._rx_fixed_point_format, self._rx_on_off_line,
+                   self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
+                   self._rx_num_line]
+        for i, rx in enumerate(regexes):
+            logging.debug("Regex %d: %s", i, rx.pattern.split("\n")[0])
+        try:
+            return _keys_in_lines(self.lines, regexes)
+        except TypeError:
+            raise
 
 
 class AgrSet():
