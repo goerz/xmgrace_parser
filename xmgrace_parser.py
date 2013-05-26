@@ -852,6 +852,13 @@ class AgrSet():
     _rx_comment   = re.compile(r'@\s*s\d+\s+comment\s+"(.*)"$')
     _rx_legend    = re.compile(r'@\s*s\d+\s+legend\s+"(.*)"$')
     # regexes for general property lines
+    _rx_on_off_line  = re.compile(r""" # 'on/off' regex
+    ^ # regex matches e.g. '@    s0 errorbar on'
+    (?P<pre> @\s*s\d+\s+)  # '@    s0 '
+    (?P<kwd> [\w\s]+\w    # 'errorbar on'
+    (?P<sep> \s+)         # ' '
+    (?P<val> (on|off)))   # 'on'
+    $""", re.X)
     _rx_lit_line  = re.compile(r""" # 'literal' regex
     ^ # regex matches e.g.'@    s0 errorbar place both'
     (?P<pre> @\s*s\d+\s+)  # '@    s0 '
@@ -866,21 +873,14 @@ class AgrSet():
     (?P<sep> \s+)          # ' '
     (?P<val> ".*")         # '""'
     $""", re.X)
-    _rx_pnt_line  = re.compile(r""" # 'point' regex
+    _rx_pnt_line  = re.compile(r""" # 'point' regex (2 or more values)
     ^ # regex matches e.g. 's0 avalue offset 0.000000 , 0.000000'
-    (?P<pre> @\s*s\d+\s+)                 # '@    s0 '
-    (?P<kwd> [\w\s]+\w)                   # 'avalue offset'
-    (?P<sep> \s+)                         # ' '
-    (?P<val> ([\d.+-]+\s*,)+\s*[\d.+-]+)  # '0.000000 , 0.000000'
+    (?P<pre> @\s*s\d+\s+)                    # '@    s0 '
+    (?P<kwd> [\w\s]+\w)                      # 'avalue offset'
+    (?P<sep> \s+)                            # ' '
+    (?P<val> (\s*[\d.+-]+\s*,)+\s*[\d.+-]+)  # '0.000000 , 0.000000'
     $""", re.X)
-    _rx_int_line  = re.compile(r""" # 'integer' regex
-    ^ # regex matches e.g. '@    s0 symbol fill pattern 1'
-    (?P<pre> @\s*s\d+\s+)  # '@    s0 '
-    (?P<kwd> [\w\s]+\w)    # 'symbol fill pattern'
-    (?P<sep> \s+)          # ' '
-    (?P<val> [\d+-]+)      # '1'
-    $""", re.X)
-    _rx_num_line  = re.compile(r""" # 'numeral' (float) regex
+    _rx_num_line  = re.compile(r""" # 'numeral' regex
     ^ # regex matches e.g. '@    s0 symbol size 0.250000'
     (?P<pre> @\s*s\d+\s+)  # '@    s0 '
     (?P<kwd> [\w\s]+\w)    # 'symbol size'
@@ -953,13 +953,10 @@ class AgrSet():
             property in the set, a TypeError is raised.
         """
         logging.debug("* Update Set properties")
-        regexes = [self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
-                   self._rx_int_line, self._rx_num_line]
-        logging.debug("Regex 0: literal")
-        logging.debug("Regex 1: string")
-        logging.debug("Regex 2: point")
-        logging.debug("Regex 3: integer")
-        logging.debug("Regex 4: numeral")
+        regexes = [self._rx_on_off_line, self._rx_lit_line, self._rx_str_line,
+                   self._rx_pnt_line, self._rx_num_line]
+        for i, rx in enumerate(regexes):
+            logging.debug("Regex %d: %s", i, rx.pattern.split("\n")[0])
         try:
             _update_properties_in_lines(self.lines, regexes, **kwargs)
         except TypeError:
@@ -982,16 +979,14 @@ class AgrSet():
         raise NotImplementedError
 
     def get_properties(self, properties):
-        """ Given list of set properties name, return an list of their values
-            (as strings)
+        """ Given list of set property names, return an list of their values
+            (as strings). Recognized property names are those returned by the
+            keys method
         """
-        regexes = [self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
-                   self._rx_int_line, self._rx_num_line]
-        logging.debug("Regex 0: literal")
-        logging.debug("Regex 1: string")
-        logging.debug("Regex 2: point")
-        logging.debug("Regex 3: integer")
-        logging.debug("Regex 4: numeral")
+        regexes = [self._rx_on_off_line, self._rx_lit_line, self._rx_str_line,
+                   self._rx_pnt_line, self._rx_num_line]
+        for i, rx in enumerate(regexes):
+            logging.debug("Regex %d: %s", i, rx.pattern.split("\n")[0])
         try:
             return _get_properties_in_lines(self.lines, regexes, properties)
         except TypeError:
@@ -1001,13 +996,10 @@ class AgrSet():
 
     def keys(self):
         """ Return the array of available set properties """
-        regexes = [self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
-                   self._rx_int_line, self._rx_num_line]
-        logging.debug("Regex 0: literal")
-        logging.debug("Regex 1: string")
-        logging.debug("Regex 2: point")
-        logging.debug("Regex 3: integer")
-        logging.debug("Regex 4: numeral")
+        regexes = [self._rx_on_off_line, self._rx_lit_line, self._rx_str_line,
+                   self._rx_pnt_line, self._rx_num_line]
+        for i, rx in enumerate(regexes):
+            logging.debug("Regex %d: %s", i, rx.pattern.split("\n")[0])
         try:
             return _keys_in_lines(self.lines, regexes)
         except TypeError:
