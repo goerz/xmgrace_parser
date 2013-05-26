@@ -585,6 +585,57 @@ class AgrFile():
         self.filename = filename
         os.unlink(tmpfile.name)
 
+    def hardcopy(self, filename, device=None, dpi=300, **kwargs):
+        """ Create a hardcopy for the current plot.
+
+            Arguments:
+            filename: Name of file to which to write the hardcopy
+            device  : Output device. Available devices are printed by
+                      `xmgrace -version`. If no device is given, it is
+                      determined from the extension of `filename`
+            dpi     : Output resolution
+
+            In addition to the above arguments, device-specific settings can be
+            given as keyword arguments, see Section 7.3 "Device-specific
+            settings" in the Grace User Manual. Settings that do not take
+            arguments should be passed True (e.g. grayscale=True).
+        """
+        extension = os.path.splitext(filename)[1][1:]
+        if device is None:
+            select_device = {
+             'ps': 'PostScript', 'eps':'EPS', 'pdf':'PDF', 'jpg':'JPEG',
+             'png':'PNG'
+            }
+            try:
+                device = select_device[extension]
+            except KeyError:
+                logging.error("Could not determine output device")
+                return
+        with tempfile.NamedTemporaryFile(suffix=".cmd", delete=False) \
+        as batchfile:
+            batchfile.write("DEVICE \"%s\" DPI %d\n" % (device, dpi))
+            batchfile.write("DEVICE \"%s\" FONT ANTIALIASING on\n" % device)
+            batchfile.write("PAGE SIZE %d, %d\n" % self.get_size(unit='ps'))
+            for key in kwargs:
+                if isinstance(kwargs[key], bool):
+                    batchfile.write("DEVICE \"%s\" OP \"%s\"\n"
+                                    % (device, key))
+                else:
+                    batchfile.write("DEVICE \"%s\" OP \"%s:%s\"\n"
+                                    % (device, key, kwargs[key]))
+        with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
+        as tmpfile:
+            tmpfile.write(str(self))
+            tmpfile.flush()
+            command = [XMGRACE, '-hardcopy', '-nosafe', '-hdevice', device,
+                       '-printfile', filename, '-batch', batchfile.name,
+                       tmpfile.name]
+            print " ".join(command)
+            call(command)
+            print "Written hardcopy to %s" % filename
+        os.unlink(batchfile.name)
+        os.unlink(tmpfile.name)
+
     def edit_header(self):
         """ Load header_lines in EDITOR for editing"""
         with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
