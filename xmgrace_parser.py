@@ -216,7 +216,7 @@ class AgrFile():
     def _set_timestamp(self):
         """ Update the timestamp to the current time """
         timestamp = datetime.now().strftime("%a %B %d %H:%M:%S %Y")
-        for i, line in self.header_lines:
+        for i, line in enumerate(self.header_lines):
             if line.startswith('@timestamp def'):
                 self.header_lines[i] = "@timestamp def \"%s\"\n" % timestamp
                 return
