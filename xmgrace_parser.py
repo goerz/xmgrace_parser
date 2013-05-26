@@ -111,6 +111,7 @@ from datetime import datetime
 #logging.basicConfig(filename='debug.log',level=logging.DEBUG)
 
 EDITOR = os.environ.get('EDITOR','vim')
+XMGRACE = 'xmgrace'
 
 # TODO: add methods/dictionary interface to other objects
 # TODO: test with all agr files I can come across
@@ -519,6 +520,21 @@ class AgrFile():
         if 'type' in kwargs:
             self.get_dataset(g,s).set_type(kwargs['type'], check_columns=False)
         self.get_dataset(g,s).set_data(*data, fmt=fmt)
+
+    def view(self):
+        """ Write out the current data to a temporary file, and view it in
+            xmgrace for interactive manipulation. Any changes saved from
+            xmgrace will replace the current data.
+        """
+        with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
+        as tmpfile:
+            tmpfile.write(str(self))
+            tmpfile.flush()
+            call([XMGRACE, tmpfile.name])
+        filename = self.filename
+        self.parse(tmpfile.name)
+        self.filename = filename
+        os.unlink(tmpfile.name)
 
     def edit_header(self):
         """ Load header_lines in EDITOR for editing"""
