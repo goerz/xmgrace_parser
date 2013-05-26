@@ -887,12 +887,6 @@ class AgrSet():
     (?P<sep> \s+)          # ' '
     (?P<val> [\d.+-]+)     # '0.250000'
     $""", re.X)
-    # regexes for checking property values
-    _rx_lit_val   = re.compile(r'(\w+)$')
-    _rx_str_val   = re.compile(r'"?[^"]*"?$')
-    _rx_pnt_val   = re.compile(r'([\d.+-]+\s*,)+\s*[\d.+-]+$')
-    _rx_int_val   = re.compile(r'[\d+-]+$')
-    _rx_num_val   = re.compile(r'[\d.+-]+$')
 
     def __init__(self):
         """ Create a new instance, without any lines """
@@ -961,15 +955,13 @@ class AgrSet():
         logging.debug("* Update Set properties")
         regexes = [self._rx_lit_line, self._rx_str_line, self._rx_pnt_line,
                    self._rx_int_line, self._rx_num_line]
-        checks  = [self._rx_lit_val, self._rx_str_val, self._rx_pnt_val,
-                   self._rx_int_val, self._rx_num_val]
         logging.debug("Regex 0: literal")
         logging.debug("Regex 1: string")
         logging.debug("Regex 2: point")
         logging.debug("Regex 3: integer")
         logging.debug("Regex 4: numeral")
         try:
-            _update_properties_in_lines(self.lines, regexes, checks, **kwargs)
+            _update_properties_in_lines(self.lines, regexes, **kwargs)
         except TypeError:
             raise
 
@@ -1184,7 +1176,7 @@ class AgrDataSet():
 ############################ Utility Routines #################################
 
 
-def _update_properties_in_lines(lines, regexes, checks, **kwargs):
+def _update_properties_in_lines(lines, regexes, **kwargs):
     """ Parse each line in `lines` as a string describing a key-value-pair,
         and update its value according to the the given keyword arguments
 
@@ -1196,10 +1188,6 @@ def _update_properties_in_lines(lines, regexes, checks, **kwargs):
                   structures of the lines. Each regular expression must contain
                   the named groups 'pre', 'kwd', 'sep', and 'val', which are
                   used to cut up the line into its constituents
-        checks:   Array of regular expressions of the same length as `regexes`.
-                  If a line matches the i'th regex in `regexes`, then a value`
-                  supplied for the property in that line must match the i'th
-                  regex in `checks`
 
         After the above positional arguments, an arbitrary number of keyword
         arguments can be given that give new values the the corresponding
@@ -1215,9 +1203,6 @@ def _update_properties_in_lines(lines, regexes, checks, **kwargs):
                 raise ValueError("regex \n%s\n' "% regex.pattern
                 +"does not define groups 'pre', 'kwd', 'sep', 'val'")
     kwd_count = {} # dictionary for counting keyword uses
-    if len(checks) != len(regexes):
-        raise ValueError("regexes and checks must have the same number of "
-        "elements")
     for i, line in enumerate(lines):
         matched = False
         logging.debug("line %d: %s", i, line[:-1])
@@ -1246,21 +1231,16 @@ def _update_properties_in_lines(lines, regexes, checks, **kwargs):
                     sep = match.group('sep')
                     old_val = match.group('val')
                     val = str(kwargs[keyword])
-                    check = checks[ir].match(val)
-                    if (check):
-                        if old_val.startswith('"'): # strings must be quoted
-                            # first, ensure value is unquoted
-                            if val.startswith('"'):
-                                val = val[1:]
-                            if val.endswith('"'):
-                                val = val[:-1]
-                            # then, quote it
-                            val = "\"%s\"" % val
-                        logging.debug("Setting %s for %s", val, line_keyword)
-                        lines[i] = "%s%s%s%s\n" % (pre, line_keyword, sep, val)
-                    else:
-                        raise ValueError("Failed check of value %s for key %s"
-                                        % (val, keyword))
+                    if old_val.startswith('"'): # strings must be quoted
+                        # first, ensure value is unquoted
+                        if val.startswith('"'):
+                            val = val[1:]
+                        if val.endswith('"'):
+                            val = val[:-1]
+                        # then, quote it
+                        val = "\"%s\"" % val
+                    logging.debug("Setting %s for %s", val, line_keyword)
+                    lines[i] = "%s%s%s%s\n" % (pre, line_keyword, sep, val)
                     del kwargs[keyword]
             if matched:
                 break # go to next line
