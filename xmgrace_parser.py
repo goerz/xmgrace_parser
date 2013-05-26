@@ -1204,9 +1204,9 @@ def _update_properties_in_lines(lines, regexes, checks, **kwargs):
 
         After the above positional arguments, an arbitrary number of keyword
         arguments can be given that give new values the the corresponding
-        property. If a line contains the property name {kwd}, then the keyword
-        argument {kwd} with spaces replaced by underscored (multiple spaces are
-        contracted) is used to replace {val}
+        property. If the keyword derived from {key} (as explained in
+        _keys_in_line) the value in that line is updated according to the given
+        keyword argument.
     """
     logging.debug("_update_properties_in_lines: kwargs: %s", str(kwargs))
     # check regexes: must contain the necessary groups
@@ -1215,6 +1215,7 @@ def _update_properties_in_lines(lines, regexes, checks, **kwargs):
             if not group in regex.groupindex.keys():
                 raise ValueError("regex \n%s\n' "% regex.pattern
                 +"does not define groups 'pre', 'kwd', 'sep', 'val'")
+    kwd_count = {} # dictionary for counting keyword uses
     if len(checks) != len(regexes):
         raise ValueError("regexes and checks must have the same number of "
         "elements")
@@ -1229,6 +1230,15 @@ def _update_properties_in_lines(lines, regexes, checks, **kwargs):
                 keyword = line_keyword.replace(" ", "_") # without spaces
                 while "__" in keyword:
                     keyword = keyword.replace('__', '_')
+                if keyword.endswith('_on'):
+                    keyword = keyword[:-3] + "_on_off"
+                elif keyword.endswith('_off'):
+                    keyword = keyword[:-4] + "_on_off"
+                if keyword in kwd_count:
+                    kwd_count[keyword] += 1
+                    keyword = "%s_%d" % (keyword, kwd_count[keyword])
+                else:
+                    kwd_count[keyword] = 1
                 logging.debug("regex %d matched line %d (keyword %s)", ir, i,
                               keyword)
                 if keyword in kwargs:
@@ -1275,6 +1285,9 @@ def _get_properties_in_lines(lines, regexes, properties):
                      contain the named groups 'pre', 'kwd', 'sep', and 'val',
                      which are used to cut up the line into its constituents
         properties:  Array of property names to get value for
+
+        Keys are derived from {kwd} according to the rules specified in
+        _keys_in_lines
     """
     logging.debug("_get_properties_in_lines: properties: %s", str(properties))
     result_dict = {}
@@ -1285,6 +1298,7 @@ def _get_properties_in_lines(lines, regexes, properties):
             if not group in regex.groupindex.keys():
                 raise ValueError("regex \n%s\n' "% regex.pattern
                 +"does not define groups 'pre', 'kwd', 'sep', 'val'")
+    kwd_count = {} # dictionary for counting keyword uses
     for i, line in enumerate(lines):
         matched = False
         logging.debug("line %d: %s", i, line[:-1])
@@ -1296,6 +1310,15 @@ def _get_properties_in_lines(lines, regexes, properties):
                 keyword = line_keyword.replace(" ", "_") # without spaces
                 while "__" in keyword:
                     keyword = keyword.replace('__', '_')
+                if keyword.endswith('_on'):
+                    keyword = keyword[:-3] + "_on_off"
+                elif keyword.endswith('_off'):
+                    keyword = keyword[:-4] + "_on_off"
+                if keyword in kwd_count:
+                    kwd_count[keyword] += 1
+                    keyword = "%s_%d" % (keyword, kwd_count[keyword])
+                else:
+                    kwd_count[keyword] = 1
                 logging.debug("regex %d matched line %d (keyword %s)", ir, i,
                               keyword)
                 if keyword in properties:
@@ -1324,12 +1347,20 @@ def _keys_in_lines(lines, regexes):
 
         Arguments:
         lines:       Array of strings, each of the form "{pre}{kwd}{sep}{val}",
-                     that is a line-prefix, a keyword/property (which my
+                     that is a line-prefix, a property key (which may
                      include spaces), a separator, and a value
         regexes:     Array of regular expressions that describe the possible
                      structures of the lines. Each regular expression must
                      contain the named groups 'pre', 'kwd', 'sep', and 'val',
                      which are used to cut up the line into its constituents
+
+        They keys are obtained from the match of {kwd} according to the
+        following rules:
+        * Spaces are contracted and replaced by underscores.
+        * keys that end in either '_on' or '_off' are modified to end in
+          '_on_off'
+        * If a key appears multiple time, occurences in subsequent lines are
+        * mapped to '*_2', '*_3' etc; that is, a counter is appended.
     """
     logging.debug("_keys_in_lines")
     result = []
@@ -1339,6 +1370,7 @@ def _keys_in_lines(lines, regexes):
             if not group in regex.groupindex.keys():
                 raise ValueError("regex \n%s\n' "% regex.pattern
                 +"does not define groups 'pre', 'kwd', 'sep', 'val'")
+    kwd_count = {} # dictionary for counting keyword uses
     for i, line in enumerate(lines):
         matched = False
         logging.debug("line %d: %s", i, line[:-1])
@@ -1350,6 +1382,15 @@ def _keys_in_lines(lines, regexes):
                 keyword = line_keyword.replace(" ", "_") # without spaces
                 while "__" in keyword:
                     keyword = keyword.replace('__', '_')
+                if keyword.endswith('_on'):
+                    keyword = keyword[:-3] + "_on_off"
+                elif keyword.endswith('_off'):
+                    keyword = keyword[:-4] + "_on_off"
+                if keyword in kwd_count:
+                    kwd_count[keyword] += 1
+                    keyword = "%s_%d" % (keyword, kwd_count[keyword])
+                else:
+                    kwd_count[keyword] = 1
                 logging.debug("regex %d matched line %d (keyword %s)", ir, i,
                               keyword)
                 result.append(keyword)
@@ -1359,8 +1400,6 @@ def _keys_in_lines(lines, regexes):
             logging.debug("No regex matched line %d", i)
     return result
 
-
-# TODO: write routine that converts latex-inspired strings into grace strings
 
 
 ############################### Exceptions ####################################
