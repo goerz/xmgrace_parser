@@ -112,9 +112,12 @@ from datetime import datetime
 
 EDITOR = os.environ.get('EDITOR','vim')
 XMGRACE = 'xmgrace'
+DEFAULT_UNIT = 'cm'
 
 # TODO: add methods/dictionary interface to other objects
 # TODO: test with all agr files I can come across
+# TODO: Implement AgrFontDict and AgrPalette structures
+# TODO: write routine that converts latex-inspired strings into grace strings
 # TODO: make pip installable (with script hook)
 
 ############################### Main Class ####################################
@@ -181,6 +184,7 @@ class AgrFile():
     _rx_graph_start   = re.compile(r'@g(\d+) (on|off)')
     _rx_dataset_start = re.compile(r'@target G(\d+).S(\d+)')
     _rx_set_label     = re.compile(r'G(\d+)S(\d+)', re.I)
+    _rx_page_size     = re.compile(r'@page\s+size\s+(\d+),\s*(\d+)')
 
     def __init__(self, agr_file):
         """ Instantiate a new AgrFile from the given filename """
@@ -220,6 +224,51 @@ class AgrFile():
         for i, line in enumerate(self.header_lines):
             if line.startswith('@timestamp def'):
                 self.header_lines[i] = "@timestamp def \"%s\"\n" % timestamp
+                return
+
+    def get_size(self, unit=DEFAULT_UNIT):
+        """ Return the canvas/page size as a tuple (width, height) in the given
+            unit. Unit may be 'cm', 'mm', 'in', or 'pt'.
+        """
+        for i, line in enumerate(self.header_lines):
+            match = self._rx_page_size.match(line)
+            if match:
+                width  = int(match.group(1))
+                height = int(match.group(2))
+                if unit == 'cm':
+                    width  *= 0.035277778
+                    height *= 0.035277778
+                if unit == 'mm':
+                    width  *= 0.35277778
+                    height *= 0.35277778
+                elif unit.startswith('in'):
+                    width  *= 0.013888889
+                    height *= 0.013888889
+                return (width, height)
+
+    def set_size(self, width, height, unit=DEFAULT_UNIT):
+        """ Set the canvas/page size from the given tuple in the specified
+            unit. Unit may be 'cm', 'mm', 'in', or 'pt'.
+
+            Note that the page size is the only thing stored in the agr file.
+            All other device properties (such as DPI) are in the
+            ~/.grace/gracerc.user config file or a set via command line
+            options. Changes to the device properties in the GUI are lost when
+            xmgrace exits.
+        """
+        if unit == 'cm':
+            width  *= 28.346457
+            height *= 28.346457
+        if unit == 'mm':
+            width  *= 2.8346457
+            height *= 2.8346457
+        elif unit.startswith('in'):
+            width  *= 72.0
+            height *= 72.0
+        for i, line in enumerate(self.header_lines):
+            if self._rx_page_size.match(line):
+                self.header_lines[i] = "@page size %d, %d\n" \
+                                        % (int(width), int(height))
                 return
 
     def print_summary(self):
