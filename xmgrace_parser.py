@@ -107,6 +107,7 @@ import sys, tempfile, os
 from subprocess import call
 import numpy as np
 from datetime import datetime
+import shutil
 
 #logging.basicConfig(filename='debug.log',level=logging.DEBUG)
 
@@ -585,15 +586,19 @@ class AgrFile():
         self.filename = filename
         os.unlink(tmpfile.name)
 
-    def hardcopy(self, filename, device=None, dpi=300, **kwargs):
+    def hardcopy(self, filename, device=None, dpi=300, write_batch=None,
+    **kwargs):
         """ Create a hardcopy for the current plot.
 
             Arguments:
-            filename: Name of file to which to write the hardcopy
-            device  : Output device. Available devices are printed by
-                      `xmgrace -version`. If no device is given, it is
-                      determined from the extension of `filename`
-            dpi     : Output resolution
+            filename    : Name of file to which to write the hardcopy
+            device      : Output device. Available devices are printed by
+                          `xmgrace -version`. If no device is given, it is
+                          determined from the extension of `filename`
+            dpi         : Output resolution
+            write_batch : If given, name of batchfile that is to be written.
+                          Using the batchfile with xmgrace directly will then
+                          allow to produce a hardcopy directly
 
             In addition to the above arguments, device-specific settings can be
             given as keyword arguments, see Section 7.3 "Device-specific
@@ -613,6 +618,11 @@ class AgrFile():
                 return
         with tempfile.NamedTemporaryFile(suffix=".cmd", delete=False) \
         as batchfile:
+            if write_batch is not None:
+                command = [XMGRACE, '-hardcopy', '-nosafe', '-hdevice', device,
+                           '-printfile', filename, '-batch', write_batch,
+                           self.filename]
+                batchfile.write("# %s\n" % " ".join(command))
             batchfile.write("DEVICE \"%s\" DPI %d\n" % (device, dpi))
             batchfile.write("DEVICE \"%s\" FONT ANTIALIASING on\n" % device)
             batchfile.write("PAGE SIZE %d, %d\n" % self.get_size(unit='ps'))
@@ -633,6 +643,8 @@ class AgrFile():
             print " ".join(command)
             call(command)
             print "Written hardcopy to %s" % filename
+        if write_batch is not None:
+            shutil.copy(batchfile.name, write_batch)
         os.unlink(batchfile.name)
         os.unlink(tmpfile.name)
 
