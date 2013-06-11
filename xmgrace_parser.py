@@ -469,6 +469,19 @@ class AgrFile():
 
         self._re_number()
 
+    def kill_set(self, g, s):
+        """ Remove the specifed set from the specified graph, along with the
+            corresponding dataset
+        """
+        del self.graphs[g].sets[s]
+        dataset_to_delete = 0
+        for i, dataset in enumerate(self.datasets):
+            if (dataset.get_g_s() == (g, s)):
+                dataset_to_delete = i
+                break
+        del self.datasets[dataset_to_delete]
+        self._re_number()
+
     def _re_number(self):
         """ Fix the numbering of all graphs and sets, and datasets.
             This routine should be called after reordering any sets. Of course,
