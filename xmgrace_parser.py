@@ -459,13 +459,17 @@ class AgrFile():
                 break
         # ... and move it
         del self.datasets[i_dataset]
-        if g_new == len(self.graphs)-1:
-            self.datasets.append(dataset)
+        insert_pos = 0
+        for i, ds in enumerate(self.datasets):
+            g = ds.get_g_s()[0]
+            if g == g_new:
+                insert_pos = i + 1
+            if g > g_new:
+                break
+        if insert_pos < len(self.datasets):
+            self.datasets.insert(insert_pos, dataset)
         else:
-            for i, ds in enumerate(self.datasets):
-                if ds.get_g_s()[0] == g_new + 1:
-                    self.datasets.insert(i, dataset)
-                    break
+            self.datasets.append(dataset)
 
         self._re_number()
 
