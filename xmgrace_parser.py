@@ -105,6 +105,11 @@
         # If you prefer to work in inches, you can set the default unit:
         >>> DEFAULT_UNIT = 'inch'
 
+        # You can do some rudimentary conversion between TeX and XmGrace
+        # strings (and back with grace2tex):
+        >>> tex2grace(r'|\\epsilon_1(t)|')
+        |\\xe\\f{}\\s1\\N(t)|
+
         # write out
         >>> agr.write()
 
@@ -131,7 +136,6 @@ DEFAULT_UNIT = 'cm'
 # TODO: add methods/dictionary interface to other objects
 # TODO: test with all agr files I can come across
 # TODO: Implement AgrFontDict and AgrPalette structures
-# TODO: write routine that converts latex-inspired strings into grace strings
 # TODO: make pip installable (with script hook)
 
 ############################### Main Class ####################################
@@ -1867,6 +1871,116 @@ def _conv_abs_coord(val, from_unit, to_unit):
         else:
             raise ValueError("Unknown unit %s" % to_unit)
     return val
+
+
+############################ String Conversion ################################
+
+
+def tex2grace(string, print_string=True):
+    """ Convert the given string from TeX to XmGrace syntax. Only greek
+        letters, and non-nested subscripts and superscripts are supported.
+
+        If print_string is True, print the resulting string, otherwise return
+        it.
+    """
+    mappings = [
+        (r'\\alpha',     r'\\xa\\f{}'),
+        (r'\\beta',      r'\\xa\\f{}'),
+        (r'\\gamma',     r'\\xg\\f{}'),
+        (r'\\delta',     r'\\xd\\f{}'),
+        (r'\\epsilon',   r'\\xe\\f{}'),
+        (r'\\eps',       r'\\xe\\f{}'),
+        (r'\\zeta',      r'\\xz\\f{}'),
+        (r'\\eta',       r'\\xh\\f{}'),
+        (r'\\theta',     r'\\xq\\f{}'),
+        (r'\\gamma',     r'\\xg\\f{}'),
+        (r'\\kappa',     r'\\xk\\f{}'),
+        (r'\\lambda',    r'\\xl\\f{}'),
+        (r'\\mu',        r'\\xm\\f{}'),
+        (r'\\nu',        r'\\xn\\f{}'),
+        (r'\\xi',        r'\\xx\\f{}'),
+        (r'\\pi',        r'\\xp\\f{}'),
+        (r'\\rho',       r'\\xr\\f{}'),
+        (r'\\sigma',     r'\\xs\\f{}'),
+        (r'\\tau',       r'\\xt\\f{}'),
+        (r'\\upsilon',   r'\\xu\\f{}'),
+        (r'\\phi',       r'\\xj\\f{}'),
+        (r'\\chi',       r'\\xc\\f{}'),
+        (r'\\psi',       r'\\xy\\f{}'),
+        (r'\\omega',     r'\\xw\\f{}'),
+        (r'\\Gamma',     r'\\xG\\f{}'),
+        (r'\\Delta',     r'\\xD\\f{}'),
+        (r'\\Theta',     r'\\xT\\f{}'),
+        (r'\\Lambda',    r'\\xL\\f{}'),
+        (r'\\Xi',        r'\\xX\\f{}'),
+        (r'\\Pi',        r'\\xP\\f{}'),
+        (r'\\Sigma',     r'\\xS\\f{}'),
+        (r'\\Upsilon',   r'\\xU\\f{}'),
+        (r'\\Phi',       r'\\xF\\f{}'),
+        (r'\\Psi',       r'\\xY\\f{}'),
+        (r'\\Omega',     r'\\xW\\f{}'),
+        (r'\^\{(.+?)\}', r'\\S\1\\N'),
+        (r'_\{(.+?)\}',  r'\\s\1\\N'),
+        (r'\^(.)',       r'\\S\1\\N'),
+        (r'_(.)',        r'\\s\1\\N'),
+    ]
+    for mapping in mappings:
+        string = re.sub(mapping[0], mapping[1], string)
+    if print_string:
+        print string
+    else:
+        return string
+
+
+def grace2tex(string, print_string=True):
+    """ Inverse of tex2grace """
+    mappings = [
+        ( r'\\f\{Symbol\}', r'\\x'),
+        ( r'\\xa\\f\{\}',   r'\\alpha'),
+        ( r'\\xa\\f\{\}',   r'\\beta'),
+        ( r'\\xg\\f\{\}',   r'\\gamma'),
+        ( r'\\xd\\f\{\}',   r'\\delta'),
+        ( r'\\xe\\f\{\}',   r'\\epsilon'),
+        ( r'\\xz\\f\{\}',   r'\\zeta'),
+        ( r'\\xh\\f\{\}',   r'\\eta'),
+        ( r'\\xq\\f\{\}',   r'\\theta'),
+        ( r'\\xg\\f\{\}',   r'\\gamma'),
+        ( r'\\xk\\f\{\}',   r'\\kappa'),
+        ( r'\\xl\\f\{\}',   r'\\lambda'),
+        ( r'\\xm\\f\{\}',   r'\\mu'),
+        ( r'\\xn\\f\{\}',   r'\\nu'),
+        ( r'\\xx\\f\{\}',   r'\\xi'),
+        ( r'\\xp\\f\{\}',   r'\\pi'),
+        ( r'\\xr\\f\{\}',   r'\\rho'),
+        ( r'\\xs\\f\{\}',   r'\\sigma'),
+        ( r'\\xt\\f\{\}',   r'\\tau'),
+        ( r'\\xu\\f\{\}',   r'\\upsilon'),
+        ( r'\\xj\\f\{\}',   r'\\phi'),
+        ( r'\\xc\\f\{\}',   r'\\chi'),
+        ( r'\\xy\\f\{\}',   r'\\psi'),
+        ( r'\\xw\\f\{\}',   r'\\omega'),
+        ( r'\\xG\\f\{\}',   r'\\Gamma'),
+        ( r'\\xD\\f\{\}',   r'\\Delta'),
+        ( r'\\xT\\f\{\}',   r'\\Theta'),
+        ( r'\\xL\\f\{\}',   r'\\Lambda'),
+        ( r'\\xX\\f\{\}',   r'\\Xi'),
+        ( r'\\xP\\f\{\}',   r'\\Pi'),
+        ( r'\\xS\\f\{\}',   r'\\Sigma'),
+        ( r'\\xU\\f\{\}',   r'\\Upsilon'),
+        ( r'\\xF\\f\{\}',   r'\\Phi'),
+        ( r'\\xY\\f\{\}',   r'\\Psi'),
+        ( r'\\xW\\f\{\}',   r'\\Omega'),
+        ( r'\\S(.+?)\\N',   r'^{\1}'),
+        ( r'\\s(.+?)\\N',   r'_{\1}'),
+        ( r'\\S(.+?)\\N',   r'^\1'),
+        ( r'\\s(.+?)\\N',   r'_\1'),
+    ]
+    for mapping in mappings:
+        string = re.sub(mapping[0], mapping[1], string)
+    if print_string:
+        print string
+    else:
+        return string
 
 
 ############################### Exceptions ####################################

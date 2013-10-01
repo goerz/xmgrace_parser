@@ -89,6 +89,11 @@ use the [pygrace][3] module.
     # If you prefer to work in inches, you can set the default unit:
     >>> DEFAULT_UNIT = 'inch'
 
+    # You can do some rudimentary conversion between TeX and XmGrace
+    # strings (and back with grace2tex):
+    >>> tex2grace(r'|\epsilon_1(t)|')
+    |\xe\f{}\s1\N(t)|
+
     # write out
     >>> agr.write()
 
