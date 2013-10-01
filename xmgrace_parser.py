@@ -102,6 +102,9 @@
         >>> agr.fontsize(10)
         0.5379011902408587
 
+        # If you prefer to work in inches, you can set the default unit:
+        >>> DEFAULT_UNIT = 'inch'
+
         # write out
         >>> agr.write()
 
@@ -238,10 +241,11 @@ class AgrFile():
                 self.header_lines[i] = "@timestamp def \"%s\"\n" % timestamp
                 return
 
-    def get_size(self, unit=DEFAULT_UNIT):
+    def get_size(self, unit='DEFAULT_UNIT'):
         """ Return the canvas/page size as a tuple (width, height) in the given
             unit. Unit may be 'cm', 'mm', 'in', or 'pt'.
         """
+        if unit == 'DEFAULT_UNIT': unit = DEFAULT_UNIT
         for i, line in enumerate(self.header_lines):
             match = self._rx_page_size.match(line)
             if match:
@@ -249,10 +253,11 @@ class AgrFile():
                 height = _conv_abs_coord(int(match.group(2)), 'pt', unit)
                 return (width, height)
 
-    def get_graph_view(self, g, unit=DEFAULT_UNIT):
+    def get_graph_view(self, g, unit='DEFAULT_UNIT'):
         """ Return the tuple (x_min, y_min, x_max, y_max) that define the
             position of the graph with index g on the canvas, in the given unit
         """
+        if unit == 'DEFAULT_UNIT': unit = DEFAULT_UNIT
         x_min, y_min, x_max, y_max = [float(f) for f in re.split(r'\s*,\s*',
                                      self.graphs[g]['view'])]
         x_min = self.conv_coord(x_min, from_unit='viewport', to_unit=unit)
@@ -261,10 +266,11 @@ class AgrFile():
         y_max = self.conv_coord(y_max, from_unit='viewport', to_unit=unit)
         return (x_min, y_min, x_max, y_max)
 
-    def print_graph_view(self, g, unit=DEFAULT_UNIT):
+    def print_graph_view(self, g, unit='DEFAULT_UNIT'):
         """ Print the position of the graph with index g on the canvas, in the
             given unit
         """
+        if unit == 'DEFAULT_UNIT': unit = DEFAULT_UNIT
         x_min, y_min, x_max, y_max = self.get_graph_view(g, unit)
         print "x_min : %f %s" % (x_min, unit)
         print "y_min : %f %s" % (y_min, unit)
@@ -276,7 +282,7 @@ class AgrFile():
         print "height: %f %s" % (height, unit)
 
     def set_graph_view(self, g, x_min=None, y_min=None, x_max=None, y_max=None,
-    width=None, height=None, unit=DEFAULT_UNIT, move_legend=True,
+    width=None, height=None, unit='DEFAULT_UNIT', move_legend=True,
     silent=False):
         """ Position the graph with index g on the canvas. The horizontal
             position is specified by x_min and x_max, or by x_min or x_max and
@@ -292,6 +298,7 @@ class AgrFile():
             The new position of the graph, as well as the offset of the legend,
             is any, will be printed to the screen unless silent is True
         """
+        if unit == 'DEFAULT_UNIT': unit = DEFAULT_UNIT
         defined = lambda val: not val is None
         # get current properties of the graph
         old_view_str, old_legend_loctype, old_legend_pos \
@@ -382,7 +389,7 @@ class AgrFile():
             else:
                 return _conv_abs_coord(val, from_unit, to_unit)
 
-    def set_size(self, width, height, unit=DEFAULT_UNIT):
+    def set_size(self, width, height, unit='DEFAULT_UNIT'):
         """ Set the canvas/page size from the given tuple in the specified
             unit. Unit may be 'cm', 'mm', 'in', or 'pt'.
 
@@ -392,6 +399,7 @@ class AgrFile():
             options. Changes to the device properties in the GUI are lost when
             xmgrace exits.
         """
+        if unit == 'DEFAULT_UNIT': unit = DEFAULT_UNIT
         if unit == 'cm':
             width  *= 28.346457
             height *= 28.346457

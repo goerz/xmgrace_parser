@@ -86,6 +86,9 @@ use the [pygrace][3] module.
     >>> agr.fontsize(10)
     0.5379011902408587
 
+    # If you prefer to work in inches, you can set the default unit:
+    >>> DEFAULT_UNIT = 'inch'
+
     # write out
     >>> agr.write()
 
