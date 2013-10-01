@@ -235,18 +235,25 @@ class AgrFile():
         for i, line in enumerate(self.header_lines):
             match = self._rx_page_size.match(line)
             if match:
-                width  = int(match.group(1))
-                height = int(match.group(2))
-                if unit == 'cm':
-                    width  *= 0.035277778
-                    height *= 0.035277778
-                if unit == 'mm':
-                    width  *= 0.35277778
-                    height *= 0.35277778
-                elif unit.startswith('in'):
-                    width  *= 0.013888889
-                    height *= 0.013888889
+                width  = _conv_abs_coord(int(match.group(1)), 'pt', unit)
+                height = _conv_abs_coord(int(match.group(2)), 'pt', unit)
                 return (width, height)
+
+    def conv_coord(self, val, from_unit=DEFAULT_UNIT, to_unit='viewport'):
+        """ Convert between absolute and relative (viewport) coordiantes
+            Both `from_unit` and `to_unit` can be 'cm', 'mm', 'in', 'pt', or
+            'viewport'
+        """
+        if from_unit == to_unit: return val
+        if from_unit.startswith('v'): # "viewport" or any abbreviation
+            device_size = min(self.get_size(unit=to_unit))
+            return val * device_size
+        else:
+            if to_unit.startswith('v'): # "viewport" or any abbreviation
+                device_size = min(self.get_size(unit='pt'))
+                return _conv_abs_coord(val, from_unit, 'pt') / device_size
+            else:
+                return _conv_abs_coord(val, from_unit, to_unit)
 
     def set_size(self, width, height, unit=DEFAULT_UNIT):
         """ Set the canvas/page size from the given tuple in the specified
@@ -1694,6 +1701,29 @@ def _keys_in_lines(lines, regexes):
             logging.debug("No regex matched line %d", i)
     return result
 
+
+def _conv_abs_coord(val, from_unit, to_unit):
+    """ Convert between two absolute coordinate units ('cm', 'mm', 'in', 'pt')
+    """
+    if from_unit != 'pt':
+        if from_unit == 'cm':
+            val /= 0.035277778
+        elif from_unit == 'mm':
+            val /= 0.35277778
+        elif from_unit.startswith('in'):
+            val /= 0.013888889
+        else:
+            raise ValueError("Unknown unit %s" % from_unit)
+    if to_unit != 'pt':
+        if to_unit == 'cm':
+            val *= 0.035277778
+        elif to_unit == 'mm':
+            val *= 0.35277778
+        elif to_unit.startswith('in'):
+            val *= 0.013888889
+        else:
+            raise ValueError("Unknown unit %s" % to_unit)
+    return val
 
 
 ############################### Exceptions ####################################
