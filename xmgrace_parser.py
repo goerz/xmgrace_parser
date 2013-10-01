@@ -239,6 +239,32 @@ class AgrFile():
                 height = _conv_abs_coord(int(match.group(2)), 'pt', unit)
                 return (width, height)
 
+    def get_graph_view(self, g, unit=DEFAULT_UNIT):
+        """ Return the tuple (x_min, y_min, x_max, y_max) that define the
+            position of the graph with index g on the canvas, in the given unit
+        """
+        x_min, y_min, x_max, y_max = [float(f) for f in re.split(r'\s*,\s*',
+                                     self.graphs[g]['view'])]
+        x_min = self.conv_coord(x_min, from_unit='viewport', to_unit=unit)
+        y_min = self.conv_coord(y_min, from_unit='viewport', to_unit=unit)
+        x_max = self.conv_coord(x_max, from_unit='viewport', to_unit=unit)
+        y_max = self.conv_coord(y_max, from_unit='viewport', to_unit=unit)
+        return (x_min, y_min, x_max, y_max)
+
+    def print_graph_view(self, g, unit=DEFAULT_UNIT):
+        """ Print the position of the graph with index g on the canvas, in the
+            given unit
+        """
+        x_min, y_min, x_max, y_max = self.get_graph_view(g, unit)
+        print "x_min : %f %s" % (x_min, unit)
+        print "y_min : %f %s" % (y_min, unit)
+        print "x_max : %f %s" % (x_max, unit)
+        print "y_max : %f %s" % (y_max, unit)
+        width = x_max - x_min
+        height = y_max - y_min
+        print "width : %f %s" % (width, unit)
+        print "height: %f %s" % (height, unit)
+
     def conv_coord(self, val, from_unit=DEFAULT_UNIT, to_unit='viewport'):
         """ Convert between absolute and relative (viewport) coordiantes
             Both `from_unit` and `to_unit` can be 'cm', 'mm', 'in', 'pt', or
@@ -329,6 +355,9 @@ class AgrFile():
         """ Print a description of how many graphs / data sets are in the agr
             file
         """
+        canvas_width, canvas_height = self.get_size()
+        print "Canvas size: %.2f x %.2f %s" \
+        % (canvas_width, canvas_height, DEFAULT_UNIT)
         self.check_consistency()
         n_drawing_objects = len(self.drawing_objects)
         if n_drawing_objects == 1:
@@ -347,11 +376,16 @@ class AgrFile():
         else:
             print "There are %d graphs in the plot" % n_graphs
         for i, graph in enumerate(self.graphs):
+            x_min, y_min, x_max, y_max = self.get_graph_view(i)
+            width = x_max - x_min
+            height = y_max - y_min
             n_sets = len(graph.sets)
             if n_sets == 1:
-                print "Graph %d: %d data set" % (i, n_sets)
+                print "Graph %d [size %.2f x %.2f %s at (%.2f, %f.2) %s]" \
+                % (i, width, height, DEFAULT_UNIT, x_min, y_min, DEFAULT_UNIT)
             else:
-                print "Graph %d: %d data sets" % (i, n_sets)
+                print "Graph %d [size %.2f x %.2f %s at (%.2f, %.2f) %s]" \
+                % (i, width, height, DEFAULT_UNIT, x_min, y_min, DEFAULT_UNIT)
             for j, set in enumerate(graph.sets):
                 print "    Set G%dS%d (%s): %d data points" \
                 % (i, j, set._get_type(), self.get_dataset(i,j).get_n_rows())
