@@ -32,24 +32,25 @@ use the [pygrace][3] module.
     % ./xmgrace_parser.py plot.agr
 
     >>> agr.print_summary()
+    Canvas size: 29.70 x 20.99 cm
     There are 3 drawing objects in the plot
     There are 5 regions in the plot
     There are 3 graphs in the plot
-    Graph 0: 2 data sets
+    Graph 0 [size 18.27 x 7.35 cm at (6.17, 11.54) cm]
         Set G0S0 (xy): 2000 data points
             comment: points_1_1.dat
             legend : f1(x)
         Set G0S1 (xy): 2000 data points
             comment: points_1_2.dat
             legend : f2(x)
-    Graph 1: 2 data sets
+    Graph 1 [size 6.05 x 7.35 cm at (6.17, 2.10) cm]
         Set G1S0 (xy): 2000 data points
             comment: points_2_1.dat
             legend : g1(x)
         Set G1S1 (xy): 1901 data points
             comment: points_2_2.dat
             legend : g2(x)
-    Graph 2: 1 data set
+    Graph 2 [size 9.51 x 7.35 cm at (14.94, 2.099028.2) cm]
         Set G2S0 (xy): 2000 data points
             comment: points_3_1.dat
 
@@ -77,8 +78,17 @@ use the [pygrace][3] module.
     # switch G0S0 and G0S1
     >>> agr.reorder_sets(0, (1,0))
 
+    # Move down G0 by 1 cm
+    >>> agr.set_graph_view(0, x_min=6.14, y_min=10.54,
+    ... width=18.27, height=7.35)
+
+    # What font size should I set if the text should be 10pt in the output PDF?
+    >>> agr.fontsize(10)
+    0.5379011902408587
+
     # write out
     >>> agr.write()
+
 
 The above examples are just a small subset of what is possible; please
 explore the module using ipython's interactive capabilities (tab
