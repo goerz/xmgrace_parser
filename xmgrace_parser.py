@@ -265,6 +265,97 @@ class AgrFile():
         print "width : %f %s" % (width, unit)
         print "height: %f %s" % (height, unit)
 
+    def set_graph_view(self, g, x_min=None, y_min=None, x_max=None, y_max=None,
+    width=None, height=None, unit=DEFAULT_UNIT, move_legend=True,
+    silent=False):
+        """ Position the graph with index g on the canvas. The horizontal
+            position is specified by x_min and x_max, or by x_min or x_max and
+            width. The vertical position is specified by y_min and y_max, or by
+            y_min or y_max and height. The values must be in the specified
+            unit, which can be 'cm', 'mm', 'in', 'pt', or 'viewport'
+            ('v', 'vp'). All values are relative to the bottom left corner of
+            the canvas.
+
+            If move_legend is true, the legend will be moved with the same
+            offset as the lower left corner of the graph.
+
+            The new position of the graph, as well as the offset of the legend,
+            is any, will be printed to the screen unless silent is True
+        """
+        defined = lambda val: not val is None
+        # get current properties of the graph
+        old_view_str, old_legend_loctype, old_legend_pos \
+        = self.graphs[g].get_properties(['view', 'legend_loctype', 'legend'])
+        old_x_min, old_y_min, old_x_max, old_y_max \
+        = [float(f) for f in re.split(r'\s*,\s*', old_view_str)]
+        # get x_min and x_max, if not given
+        if not ((defined(x_min)) and (defined(x_max))):
+            if (defined(x_min) and defined(width)):
+                x_max = x_min + width
+            elif (defined(x_max) and defined(width)) :
+                x_min = x_max - width
+            else:
+                raise ValueError("You must either give x_min and x_max; or "
+                "x_min or x_max and width")
+        # get y_min and y_max, if not given
+        if not ((defined(y_min)) and (defined(y_max))):
+            if (defined(y_min) and defined(height)):
+                y_max = y_min + height
+            elif (defined(y_max) and defined(height)):
+                y_min = y_max - height
+            else:
+                raise ValueError("You must either give y_min and y_max; or "
+                "y_min or y_max and height")
+        # Convert to viewpoint coordinates
+        x_min = self.conv_coord(x_min, from_unit=unit, to_unit='viewport')
+        y_min = self.conv_coord(y_min, from_unit=unit, to_unit='viewport')
+        x_max = self.conv_coord(x_max, from_unit=unit, to_unit='viewport')
+        y_max = self.conv_coord(y_max, from_unit=unit, to_unit='viewport')
+        # Set view
+        self.graphs[g]['view'] = ", ".join(
+        ["%f" % v for v in (x_min, y_min, x_max, y_max)])
+        # Print info
+        if not silent:
+            x_min_u = self.conv_coord(x_min, 'viewport', DEFAULT_UNIT)
+            x_max_u = self.conv_coord(x_max, 'viewport', DEFAULT_UNIT)
+            y_min_u = self.conv_coord(y_min, 'viewport', DEFAULT_UNIT)
+            y_max_u = self.conv_coord(y_max, 'viewport', DEFAULT_UNIT)
+            old_x_min_u = self.conv_coord(old_x_min, 'viewport', DEFAULT_UNIT)
+            old_x_max_u = self.conv_coord(old_x_max, 'viewport', DEFAULT_UNIT)
+            old_y_min_u = self.conv_coord(old_y_min, 'viewport', DEFAULT_UNIT)
+            old_y_max_u = self.conv_coord(old_y_max, 'viewport', DEFAULT_UNIT)
+            print 'Moved graph to new viewpoint'
+            print "x_min : %.2f -> %.2f %s" \
+                  % (old_x_min_u, x_min_u, DEFAULT_UNIT)
+            print "y_min : %.2f -> %.2f %s" \
+                  % (old_y_min_u, y_min_u, DEFAULT_UNIT)
+            print "x_max : %.2f -> %.2f %s" \
+                  % (old_x_max_u, x_max_u, DEFAULT_UNIT)
+            print "y_max : %.2f -> %.2f %s" \
+                  % (old_y_max_u, y_max_u, DEFAULT_UNIT)
+            width  = x_max - x_min
+            height = y_max - y_min
+            old_width  = old_x_max - old_x_min
+            old_height = old_y_max - old_y_min
+            print "width : %.2f -> %.2f %s" \
+                  % (old_width, width, DEFAULT_UNIT)
+            print "height: %.2f -> %.2f %s" \
+                  % (old_height, height, DEFAULT_UNIT)
+        # Move legend (if activated)
+        if move_legend and old_legend_loctype.strip() == 'view':
+            x_offset = x_min - old_x_min
+            y_offset = y_min - old_y_min
+            old_legend_x, old_legend_y \
+            = [float(f) for f in re.split(r'\s*,\s*', old_legend_pos)]
+            legend_x = old_legend_x + x_offset
+            legend_y = old_legend_y + y_offset
+            self.graphs[g]['legend'] = "%f, %f" % (legend_x, legend_y)
+            if not silent:
+                print "Moved legend by offset %f, %f (%s)" \
+                % (self.conv_coord(x_offset, 'viewport', DEFAULT_UNIT),
+                   self.conv_coord(y_offset, 'viewport', DEFAULT_UNIT),
+                   DEFAULT_UNIT)
+
     def conv_coord(self, val, from_unit=DEFAULT_UNIT, to_unit='viewport'):
         """ Convert between absolute and relative (viewport) coordiantes
             Both `from_unit` and `to_unit` can be 'cm', 'mm', 'in', 'pt', or
