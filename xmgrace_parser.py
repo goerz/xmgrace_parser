@@ -196,6 +196,7 @@ class AgrFile():
        in agr`)
     """
 
+    _rx_header_start  = re.compile(r'# Grace project file')
     _rx_header_stop   = re.compile(r'@timestamp def')
     _rx_region_start  = re.compile(r'@r(\d+) (on|off)')
     _rx_object_start  = re.compile(r'@with (\w+)')
@@ -921,14 +922,17 @@ class AgrFile():
         self.clear()
         logging.debug("* Parsing %s", agr_file)
         self.filename = agr_file
-        state = "in_header"
+        state = "opened"
         line_nr = 0
         with open(agr_file, 'r') as fh:
             for line in fh:
                 line_nr += 1
                 if line == "":
                     continue # just skip blank lines
-                if (state == "in_header"):
+                if (state == "opened"):
+                    if self._rx_header_start.match(line):
+                        state = "in_header"
+                elif (state == "in_header"):
                     self.header_lines.append(line)
                     self._linelog(line_nr, 'header_lines')
                     if self._rx_header_stop.match(line):
@@ -992,6 +996,9 @@ class AgrFile():
                     logging.error(msg)
                     raise AgrParserError(msg)
         logging.debug("Done Parsing %s", agr_file)
+        if state == 'opened':
+            raise AgrParserError("The file is missing the "
+            "'Grace project file' header.")
         self.check_consistency()
 
     def write(self, agr_file=None, overwrite=False, consistency_check=True):
