@@ -195,6 +195,7 @@ class AgrFile():
         self.graphs          = []  # Array of AgrGraph objects
         self.datasets        = []  # Array of AgrDataSet objects
         self.filename = agr_file
+        self.font_factor     = 1.0 # Scaling of font sizes, relative to "Times"
         self.parse(agr_file)
 
     def clear(self):
@@ -271,6 +272,51 @@ class AgrFile():
                 self.header_lines[i] = "@page size %d, %d\n" \
                                         % (int(width), int(height))
                 return
+
+    def fontsize(self, size, from_unit="pt", to_unit=None):
+        """ Make a rough conversion between absolute and relative font sizes
+
+            The font sizes in xmgrace are relative to the viewport coordinates,
+            i.e. if the canvas size is changed, the xmgrace font sizes have to
+            be adjusted to result in the same absolute font size.
+
+            The number reported is a heuristic value for the "Times" font and
+            normal canvas sizes. For other fonts, you may have to set
+            self.font_factor; which scales the conversion from absulute to
+            relative coordinates.
+
+            The easist way to verify the actual resulting font sizes in an PDF
+            hardcopy of a plot is to use the Python pdfminer package and run
+            e.g.
+
+                pdf2txt.py -t xml out.pdf
+        """
+        # The "device size" defines "1" for viewpoint coordiantes: it is either
+        # the width or the height of the canvas, whichever is smaller.
+        device_size = min(self.get_size(unit='pt'))
+        if from_unit == to_unit:
+            return size
+        if from_unit in ['pt', 'pp']:
+            if to_unit is None:
+                to_unit = 'agr'
+            agr_size  = self.font_factor * size / (device_size * 0.031245)
+            if to_unit == 'agr':
+                return agr_size
+            elif to_unit == 'grace':
+                return agr_size * 100
+            else:
+                logging.error("Unknown to_unit: %s" % to_unit)
+                return None
+        elif from_unit in ['agr', 'grace']:
+            if to_unit is None:
+                to_unit = 'pt'
+            agr_size  = size
+            if from_unit == 'grace':
+                agr_size = float(agr_size) / 100.0
+            return agr_size * device_size * 0.031245 / self.font_factor
+        else:
+            logging.error("Unknown from_unit: %s" % from_unit)
+            return None
 
     def print_summary(self):
         """ Print a description of how many graphs / data sets are in the agr
