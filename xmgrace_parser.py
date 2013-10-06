@@ -130,7 +130,7 @@ import shutil
 #logging.basicConfig(filename='debug.log',level=logging.DEBUG)
 
 EDITOR = os.environ.get('EDITOR','vim')
-XMGRACE = 'xmgrace'
+XMGRACE = None # if None, select xmgrace executable from PATH
 DEFAULT_UNIT = 'cm'
 
 # TODO: add methods/dictionary interface to other objects
@@ -214,6 +214,12 @@ class AgrFile():
         self.datasets        = []  # Array of AgrDataSet objects
         self.filename = agr_file
         self.font_factor     = 1.0 # Scaling of font sizes, relative to "Times"
+        self.xmgrace = XMGRACE
+        if XMGRACE is None:
+            self.xmgrace = which('xmgrace')
+        if self.xmgrace is None:
+            print >> sys.stdout, "WARNING: xmgrace not availabe"
+
         self.parse(agr_file)
 
     def clear(self):
@@ -805,11 +811,12 @@ class AgrFile():
             xmgrace for interactive manipulation. Any changes saved from
             xmgrace will replace the current data.
         """
+        assert self.xmgrace is not None, "xmgrace executable not found"
         with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
         as tmpfile:
             tmpfile.write(str(self))
             tmpfile.flush()
-            call([XMGRACE, tmpfile.name])
+            call([self.xmgrace, tmpfile.name])
         filename = self.filename
         self.parse(tmpfile.name)
         self.filename = filename
@@ -834,6 +841,7 @@ class AgrFile():
             settings" in the Grace User Manual. Settings that do not take
             arguments should be passed True (e.g. grayscale=True).
         """
+        assert self.xmgrace is not None, "xmgrace executable not found"
         extension = os.path.splitext(filename)[1][1:]
         if device is None:
             select_device = {
@@ -848,9 +856,9 @@ class AgrFile():
         with tempfile.NamedTemporaryFile(suffix=".cmd", delete=False) \
         as batchfile:
             if write_batch is not None:
-                command = [XMGRACE, '-hardcopy', '-nosafe', '-hdevice', device,
-                           '-printfile', filename, '-batch', write_batch,
-                           self.filename]
+                command = [self.xmgrace, '-hardcopy', '-nosafe',
+                           '-hdevice', device, '-printfile', filename,
+                           '-batch', write_batch, self.filename]
                 batchfile.write("# %s\n" % " ".join(command))
             batchfile.write("DEVICE \"%s\" DPI %d\n" % (device, dpi))
             batchfile.write("DEVICE \"%s\" FONT ANTIALIASING on\n" % device)
@@ -1878,6 +1886,29 @@ def _conv_abs_coord(val, from_unit, to_unit):
         else:
             raise ValueError("Unknown unit %s" % to_unit)
     return val
+
+
+def which(name):
+    """ Search PATH for executable files with the given name. Return first
+        found path (equivalent to linux `which` command), or None if it cannot
+        be found.
+    """
+    # adapted from a routine that is part of the Twisted framework
+    # (http://twistedmatrix.com)
+    flags = os.X_OK # On Windows, only flag that has any meaning is os.F_OK.
+    exts = filter(None, os.environ.get('PATHEXT', '').split(os.pathsep))
+    path = os.environ.get('PATH', None)
+    if path is None:
+        return None
+    for p in os.environ.get('PATH', '').split(os.pathsep):
+        p = os.path.join(p, name)
+        if os.access(p, flags):
+            return p
+        for e in exts:
+            pext = p + e
+            if os.access(pext, flags):
+                return pext
+    return None
 
 
 ############################ String Conversion ################################
