@@ -204,6 +204,10 @@ class AgrFile():
     _rx_dataset_start = re.compile(r'@target G(\d+).S(\d+)')
     _rx_set_label     = re.compile(r'G(\d+)S(\d+)', re.I)
     _rx_page_size     = re.compile(r'@page\s+size\s+(\d+),\s*(\d+)')
+    _rx_font_size = re.compile(r""" # any line defining a font size
+    (^@ \s+ default \s+ char \s+ size \s+)
+    (?P<val>.*)
+    """, re.X)
 
     def __init__(self, agr_file):
         """ Instantiate a new AgrFile from the given filename """
@@ -1052,6 +1056,20 @@ class AgrFile():
         else:
             print "Nothing written"
 
+    def scale_font(self, factor):
+        """ Scale all font sizes by the given factor """
+        for i, line in enumerate(self.header_lines):
+            match = self._rx_font_size.match(line)
+            if match:
+                value = float(match.group("val"))
+                value *= factor
+                line = "%s%f" % (match.group(1), value)
+                self.header_lines[i] = line + "\n"
+        for drawing_object in self.drawing_objects:
+            drawing_object.scale_font(factor)
+        for graph in self.graphs:
+            graph.scale_font(factor)
+
 
 ################## Auxiliary classes (substructures) ##########################
 
@@ -1060,6 +1078,8 @@ class AgrDrawingObject():
     """ Array of lines from the agr file representing a single "Drawing Object",
         e.g. a string label (stored in the lines attribute)
     """
+
+    _rx_font_size  = re.compile(r'(^@\s+string\s+char\s+size\s+)(?P<val>.*)$')
 
     def __init__(self):
         """ Create a new instance, without any lines """
@@ -1083,6 +1103,16 @@ class AgrDrawingObject():
             for line in fh:
                 self.lines.append(line)
         os.unlink(tmpfile.name)
+
+    def scale_font(self, factor):
+        """ Scale all font sizes by the given factor """
+        for i, line in enumerate(self.lines):
+            match = self._rx_font_size.match(line)
+            if match:
+                value = float(match.group("val"))
+                value *= factor
+                line = "%s%f" % (match.group(1), value)
+                self.lines[i] = line + "\n"
 
 
 class AgrRegion():
@@ -1177,6 +1207,15 @@ class AgrGraph():
     (?P<sep> \s+)          # ' '
     (?P<val> [\d.+-]+)     # '0.000000'
     $""", re.X)
+    _rx_font_size = re.compile(r""" # any line defining a font size
+    (^@\s+
+     ( (sub)?title \s+ size |
+       (x|y)axis \s+ (tick)?label \s+ char \s+ size |
+       legend \s+ char \s+ size
+     ) \s+
+    )
+    (?P<val>.*)
+    """, re.X)
 
     def __init__(self, first_line):
         """ Create a new instance, based on the given `first_line` """
@@ -1328,6 +1367,18 @@ class AgrGraph():
         except TypeError:
             raise
 
+    def scale_font(self, factor):
+        """ Scale all font sizes by the given factor """
+        for i, line in enumerate(self.lines):
+            match = self._rx_font_size.match(line)
+            if match:
+                value = float(match.group("val"))
+                value *= factor
+                line = "%s%f" % (match.group(1), value)
+                self.lines[i] = line + "\n"
+        for set in self.sets:
+            set.scale_font(factor)
+
 
 class AgrSet():
     """ Array of lines from the agr file representing the properties (i.e. not
@@ -1381,6 +1432,13 @@ class AgrSet():
     (?P<sep> \s+)          # ' '
     (?P<val> [\d.+-]+)     # '0.250000'
     $""", re.X)
+    _rx_font_size = re.compile(r""" # any line defining a font size
+    (^@\s+
+     s\d+ \s+ avalue \s+ char \s+ size
+     \s+
+    )
+    (?P<val>.*)
+    """, re.X)
 
     def __init__(self):
         """ Create a new instance, without any lines """
@@ -1503,6 +1561,16 @@ class AgrSet():
         """ Return the multi-line string (partial agr file) for the set
         """
         return ''.join(self.lines)
+
+    def scale_font(self, factor):
+        """ Scale all font sizes by the given factor """
+        for i, line in enumerate(self.lines):
+            match = self._rx_font_size.match(line)
+            if match:
+                value = float(match.group("val"))
+                value *= factor
+                line = "%s%f" % (match.group(1), value)
+                self.lines[i] = line + "\n"
 
 
 class AgrDataSet():
