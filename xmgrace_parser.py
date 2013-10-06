@@ -938,6 +938,8 @@ class AgrFile():
                 if line == "":
                     continue # just skip blank lines
                 if (state == "opened"):
+                    self.header_lines.append(line)
+                    self._linelog(line_nr, 'header_lines')
                     if self._rx_header_start.match(line):
                         state = "in_header"
                 elif (state == "in_header"):
