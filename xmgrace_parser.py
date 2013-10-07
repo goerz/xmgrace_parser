@@ -866,7 +866,7 @@ class AgrFile():
                 batchfile.write("# %s\n" % " ".join(command))
             batchfile.write("DEVICE \"%s\" DPI %d\n" % (device, dpi))
             batchfile.write("DEVICE \"%s\" FONT ANTIALIASING on\n" % device)
-            batchfile.write("PAGE SIZE %d, %d\n" % self.get_size(unit='ps'))
+            batchfile.write("PAGE SIZE %d, %d\n" % self.get_size(unit='pt'))
             for key in kwargs:
                 if isinstance(kwargs[key], bool):
                     batchfile.write("DEVICE \"%s\" OP \"%s\"\n"
@@ -878,9 +878,9 @@ class AgrFile():
         as tmpfile:
             tmpfile.write(str(self))
             tmpfile.flush()
-            command = [XMGRACE, '-hardcopy', '-nosafe', '-hdevice', device,
-                       '-printfile', filename, '-batch', batchfile.name,
-                       tmpfile.name]
+            command = [self.xmgrace, '-hardcopy', '-nosafe',
+                       '-hdevice', device, '-printfile', filename,
+                       '-batch', batchfile.name, tmpfile.name]
             print " ".join(command)
             call(command)
             print "Written hardcopy to %s" % filename
