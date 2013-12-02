@@ -205,7 +205,7 @@ class AgrFile():
     _rx_set_label     = re.compile(r'G(\d+)S(\d+)', re.I)
     _rx_page_size     = re.compile(r'@page\s+size\s+(\d+),\s*(\d+)')
     _rx_font_size = re.compile(r""" # any line defining a font size
-    (^@ \s+ default \s+ char \s+ size \s+)
+    (^@ \s* default \s+ char \s+ size \s+)
     (?P<val>.*)
     """, re.X)
 
@@ -437,18 +437,24 @@ class AgrFile():
             i.e. if the canvas size is changed, the xmgrace font sizes have to
             be adjusted to result in the same absolute font size.
 
+            Absolute font sizes are in postscript points (unit 'pt' or 'pp'),
+            relative font sizes are in 'agr' or 'grace' units, where 'agr'
+            denotes the units used internally in the Grace project file, and
+            'grace' denotes the unit used in the graphical user interface. The
+            two differ by a factor of 100 (1 agr unit = 100 grace units)
+
             The number reported is a heuristic value for the "Times" font and
             normal canvas sizes. For other fonts, you may have to set
-            self.font_factor; which scales the conversion from absulute to
+            self.font_factor; which scales the conversion from absolute to
             relative coordinates.
 
-            The easist way to verify the actual resulting font sizes in an PDF
+            The easiest way to verify the actual resulting font sizes in an PDF
             hardcopy of a plot is to use the Python pdfminer package and run
             e.g.
 
                 pdf2txt.py -t xml out.pdf
         """
-        # The "device size" defines "1" for viewpoint coordiantes: it is either
+        # The "device size" defines "1" for viewpoint coordinates: it is either
         # the width or the height of the canvas, whichever is smaller.
         device_size = min(self.get_size(unit='pt'))
         if from_unit == to_unit:
@@ -1070,6 +1076,21 @@ class AgrFile():
         for graph in self.graphs:
             graph.scale_font(factor)
 
+    def set_fontsize(self, size, unit='pt'):
+        """ Set the font size of all strings. The value of size in in the given
+            unit ('pt', 'agr', or 'grace', as understood by the fontsize method
+        """
+        value = self.fontsize(size, unit)
+        for i, line in enumerate(self.header_lines):
+            match = self._rx_font_size.match(line)
+            if match:
+                line = "%s%f" % (match.group(1), value)
+                self.header_lines[i] = line + "\n"
+        for drawing_object in self.drawing_objects:
+            drawing_object.set_fontsize(value)
+        for graph in self.graphs:
+            graph.set_fontsize(value)
+
 
 ################## Auxiliary classes (substructures) ##########################
 
@@ -1112,6 +1133,16 @@ class AgrDrawingObject():
                 value = float(match.group("val"))
                 value *= factor
                 line = "%s%f" % (match.group(1), value)
+                self.lines[i] = line + "\n"
+
+    def set_fontsize(self, size):
+        """ Set the font size of all strings. The value of size in in 'agr'
+            units.
+        """
+        for i, line in enumerate(self.lines):
+            match = self._rx_font_size.match(line)
+            if match:
+                line = "%s%f" % (match.group(1), size)
                 self.lines[i] = line + "\n"
 
 
@@ -1379,6 +1410,18 @@ class AgrGraph():
         for set in self.sets:
             set.scale_font(factor)
 
+    def set_fontsize(self, size):
+        """ Set the font size of all strings. The value of size in in 'agr'
+            units.
+        """
+        for i, line in enumerate(self.lines):
+            match = self._rx_font_size.match(line)
+            if match:
+                line = "%s%f" % (match.group(1), size)
+                self.lines[i] = line + "\n"
+        for set in self.sets:
+            set.set_fontsize(size)
+
 
 class AgrSet():
     """ Array of lines from the agr file representing the properties (i.e. not
@@ -1570,6 +1613,16 @@ class AgrSet():
                 value = float(match.group("val"))
                 value *= factor
                 line = "%s%f" % (match.group(1), value)
+                self.lines[i] = line + "\n"
+
+    def set_fontsize(self, size):
+        """ Set the font size of all strings. The value of size in in 'agr'
+            units.
+        """
+        for i, line in enumerate(self.lines):
+            match = self._rx_font_size.match(line)
+            if match:
+                line = "%s%f" % (match.group(1), size)
                 self.lines[i] = line + "\n"
 
 
