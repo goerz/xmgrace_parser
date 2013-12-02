@@ -912,6 +912,35 @@ class AgrFile():
         """ Load drawing object with the given index in EDITOR for editing """
         self.drawing_objects[index].edit_lines()
 
+    def edit_drawing_objects(self):
+        """ Load all drawing object in EDITOR for editing """
+        lines_to_edit = map(str, self.drawing_objects)
+        with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
+        as tmpfile:
+            tmpfile.write(''.join(lines_to_edit))
+            tmpfile.flush()
+            call([EDITOR, tmpfile.name])
+        edited_lines = []
+        with open(tmpfile.name) as fh:
+            for line in fh:
+                edited_lines.append(line)
+        os.unlink(tmpfile.name)
+        filename = self.filename
+        # write out everything to a temporary agr file, replacing the drawing
+        # objects with the edited_lines, then read in the file again
+        lines = []
+        lines.extend(self.header_lines)
+        lines.extend(edited_lines)
+        lines.extend(map(str, self.regions))
+        lines.extend(map(str, self.graphs))
+        lines.extend(map(str, self.datasets))
+        with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
+        as tmpfile:
+            tmpfile.write(''.join(lines))
+        self.parse(tmpfile.name)
+        self.filename = filename
+        os.unlink(tmpfile.name)
+
     def edit_region(self, index):
         """ Load region with the given index in EDITOR for editing """
         self.regions[index].edit_lines()
