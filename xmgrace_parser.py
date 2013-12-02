@@ -925,9 +925,9 @@ class AgrFile():
             for line in fh:
                 edited_lines.append(line)
         os.unlink(tmpfile.name)
-        filename = self.filename
         # write out everything to a temporary agr file, replacing the drawing
         # objects with the edited_lines, then read in the file again
+        filename = self.filename
         lines = []
         lines.extend(self.header_lines)
         lines.extend(edited_lines)
@@ -945,9 +945,45 @@ class AgrFile():
         """ Load region with the given index in EDITOR for editing """
         self.regions[index].edit_lines()
 
-    def edit_graph(self, g):
-        """ Load properties for graph g in EDITOR for editing """
-        self.graphs[g].edit_lines()
+    def edit_graph(self, g, with_sets=True):
+        """ Load properties for graph g in EDITOR for editing. If with_sets is
+            True, also include the properties of all sets belonging to the
+            graph.
+        """
+        if with_sets:
+            lines_to_edit = self.graphs[g].lines
+            lines_to_edit.extend(map(str, self.graphs[g].sets))
+            with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
+            as tmpfile:
+                tmpfile.write(''.join(lines_to_edit))
+                tmpfile.flush()
+                call([EDITOR, tmpfile.name])
+            edited_lines = []
+            with open(tmpfile.name) as fh:
+                for line in fh:
+                    edited_lines.append(line)
+            os.unlink(tmpfile.name)
+            # write out everything to a temporary agr file, replacing the graph
+            # with the edited_lines, then read in the file again
+            filename = self.filename
+            lines = []
+            lines.extend(self.header_lines)
+            lines.extend(map(str, self.drawing_objects))
+            lines.extend(map(str, self.regions))
+            for i, graph in enumerate(self.graphs):
+                if i == g:
+                    lines.extend(edited_lines)
+                else:
+                    lines.append(str(graph))
+            lines.extend(map(str, self.datasets))
+            with tempfile.NamedTemporaryFile(suffix=".agr", delete=False) \
+            as tmpfile:
+                tmpfile.write(''.join(lines))
+            self.parse(tmpfile.name)
+            self.filename = filename
+            os.unlink(tmpfile.name)
+        else:
+            self.graphs[g].edit_lines()
 
     def edit_set(self, g, s):
         """ Load properties for set s in graph g in EDITOR for editing """
