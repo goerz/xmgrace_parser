@@ -1156,6 +1156,25 @@ class AgrFile():
         for graph in self.graphs:
             graph.set_fontsize(value)
 
+    def merge(self, agr_file, merge_drawing_objects=False):
+        """ Load the graphs and associated data from the given agr_file into
+            the current canvas. The current header remains unaffected.
+
+            If merge_drawing_objects is True, also that drawing objects from
+            the given agr_file will be imported.
+        """
+        if (isinstance(agr_file, str)):
+            other = AgrFile(agr_file)
+        elif (isinstance(agr_file, AgrFile)):
+            other = agr_file
+        else:
+            raise ValueError("agr_file must be either string or AgrFile "
+                             "instance")
+        self.graphs   += other.graphs
+        self.datasets += other.datasets
+        if merge_drawing_objects:
+            self.drawing_objects += other.drawing_objects
+        self._re_number()
 
 ################## Auxiliary classes (substructures) ##########################
 
