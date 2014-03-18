@@ -209,8 +209,13 @@ class AgrFile():
     (?P<val>.*)
     """, re.X)
 
-    def __init__(self, agr_file):
-        """ Instantiate a new AgrFile from the given filename """
+    def __init__(self, agr_file, repair=False):
+        """ Instantiate a new AgrFile from the given filename
+
+            If 'repair' is given as True, try to fix datasets being in the
+            wrong order. You should always check the result of such a repair
+            attempt
+        """
         self.header_lines    = []  # Array of strings
         self.drawing_objects = []  # Array of AgrDrawingObject objects
         self.regions         = []  # Array of AgrRegion objects
@@ -224,7 +229,7 @@ class AgrFile():
         if self.xmgrace is None:
             print >> sys.stdout, "WARNING: xmgrace not availabe"
 
-        self.parse(agr_file)
+        self.parse(agr_file, repair)
 
     def clear(self):
         """ Clear all lines """
@@ -998,9 +1003,11 @@ class AgrFile():
                 dataset.edit_data()
                 break
 
-    def parse(self, agr_file):
+    def parse(self, agr_file, repair=False):
         """ Load the given agr_file. This completely overwrites any previous
-            data
+            data.
+
+            If repair is given as True, try to renumber datasets if necessary.
         """
         self.clear()
         logging.debug("* Parsing %s", agr_file)
@@ -1084,6 +1091,9 @@ class AgrFile():
         if state == 'opened':
             raise AgrParserError("The file is missing the "
             "'Grace project file' header.")
+        if repair:
+            self.datasets.sort(key = lambda dataset: str(dataset.get_g_s()))
+            self._re_number()
         self.check_consistency()
 
     def write(self, agr_file=None, overwrite=False, consistency_check=True):
