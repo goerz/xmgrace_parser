@@ -126,6 +126,8 @@ from subprocess import call
 import numpy as np
 from datetime import datetime
 import shutil
+from optparse import OptionParser
+
 
 #logging.basicConfig(filename='debug.log',level=logging.DEBUG)
 
@@ -2261,16 +2263,27 @@ class AgrInconsistencyError(Exception):
 
 ####################### Main Program (start ipython) ##########################
 
-
-if __name__ == "__main__":
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+    arg_parser = OptionParser(
+    usage = "usage: %prog [options] [AGR_FILE]",
+    description = "Work with an XMGrace AGR file interactively.")
+    arg_parser.add_option(
+        '--repair', action='store_true', dest='repair',
+        help="Attempt to repair the given agr file")
+    arg_parser.add_option(
+        '--hardcopy', action='store', dest='hardcopy',
+        help="Write out a hardcopy to the given file and exit immediately")
+    options, args = arg_parser.parse_args(argv)
     try:
         from IPython import embed
         from IPython.core.page import page
         loaded_file = False
-        if (len(sys.argv) > 1):
-            filename = sys.argv[1]
+        if (len(args) > 1):
+            filename = args[-1]
             if os.path.isfile(filename):
-                agr = AgrFile(filename)
+                agr = AgrFile(filename, repair=options.repair)
                 loaded_file = True
             else:
                 logging.error("File '%s' not found", filename)
@@ -2308,7 +2321,17 @@ object?   -> Details about 'object', use 'object??' for extra details.
 %pylab    -> load numpy and matplotlib
 """
         exit_msg="Exiting interactive xmgrace_parser"
-        embed(banner1=banner, banner2=banner2, exit_msg=exit_msg)
+        if options.hardcopy:
+            if loaded_file:
+                agr.hardcopy(options.hardcopy)
+            else:
+                arg_parser.error("The --hardcopy option is only valid if an "
+                                 "AGR_FILE is also given")
+        else:
+            embed(banner1=banner, banner2=banner2, exit_msg=exit_msg)
     except ImportError:
         logging.error("IPython is not available. Can't run interactively")
-        sys.exit(1)
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
