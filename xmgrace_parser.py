@@ -118,6 +118,8 @@
     completion!)
 """
 
+__version__ = '1.0.0'
+
 import re
 import logging
 from StringIO import StringIO

@@ -15,9 +15,8 @@ The module fulfills two purposes:
    existing template (e.g. by replacing the plot data).
 
 2) Allowing to *interactively* explore an agr file in [ipython][2], to edit its
-   various parts, and to make common modifications to the file. To enter
-   interactive mode, simply run this module as a script (you may give the
-   name of an agr file as a parameter to load that file).
+   various parts, and to make common modifications to the file. A special
+   emphasis is on controlling the plot layout in absolute units.
 
 The module's purpose is *not* to create an agr file from scratch. For this,
 use the [pygrace][3] module.
@@ -26,10 +25,14 @@ use the [pygrace][3] module.
 [2]: http://ipython.org
 [3]: http://pygrace.github.io
 
+## Installation ##
+
+    pip install xmgrace_parser
+
 ## Example interactive usage ##
 
     # load ipython with agr object instantiated
-    % ./xmgrace_parser.py plot.agr
+    % xmgrace_parser plot.agr
 
     >>> agr.print_summary()
     Canvas size: 29.70 x 20.99 cm
@@ -88,6 +91,16 @@ use the [pygrace][3] module.
 
     # If you prefer to work in inches, you can set the default unit:
     >>> DEFAULT_UNIT = 'inch'
+
+    # set the canvas size to 8.5 x 4 cm
+    >>> agr.set_size(8.5, 4)
+
+    # kill graph 1 and 2
+    >>> agr.kill_graph(1)
+    >>> agr.kill_graph(1)
+
+    # Set position of G0S0 in absolute units
+    >>> agr.set_graph_view(0, 0, x_min=1.0, y_min=0.75, width=6, height=3)
 
     # You can do some rudimentary conversion between TeX and XmGrace
     # strings (and back with grace2tex):
