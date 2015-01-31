@@ -191,8 +191,11 @@ class AgrFile():
                          array of strings describing the data in their 'lines'
                          attribute
 
-       Furthermore AgrFile objects have the 'filename' attribute, which keeps
-       track of the name of the file from which it was created.
+       Furthermore, AgrFile objects have the following attributes:
+
+       filename: Name of the file from which object was created / will be save
+                 by default
+       dpi:      Default DPI when calling hardcopy(). Initialized to 150.
 
        The string representation of an AgrFile object is the concatenated lines
        that are stored in it, i.e. printing an AgrFile object after it was
@@ -229,6 +232,7 @@ class AgrFile():
         self.filename = agr_file
         self.font_factor     = 1.0 # Scaling of font sizes, relative to "Times"
         self.xmgrace = XMGRACE
+        self.dpi = 150
         if XMGRACE is None:
             self.xmgrace = which('xmgrace')
         if self.xmgrace is None:
@@ -871,7 +875,7 @@ class AgrFile():
                 # the next line will be the device list
                 found_devices = True
 
-    def hardcopy(self, filename, device=None, dpi=300, quiet=False,
+    def hardcopy(self, filename, device=None, dpi=None, quiet=False,
     write_batch=None, **kwargs):
         """ Create a hardcopy for the current plot.
 
@@ -880,7 +884,7 @@ class AgrFile():
             device      : Output device. Available devices are printed by
                           `xmgrace -version`. If no device is given, it is
                           determined from the extension of `filename`
-            dpi         : Output resolution
+            dpi         : Output resolution. Defaults to self.dpi
             quiet       : If True, do not print any output
             write_batch : If given, name of batchfile that is to be written.
                           Using the batchfile with xmgrace directly will then
@@ -894,6 +898,8 @@ class AgrFile():
         assert self.xmgrace is not None, "xmgrace executable not found"
         basename, extension = os.path.splitext(filename)
         extension = extension[1:] # drop the dot from the file extension
+        if dpi is None:
+            dpi = self.dpi
         if device is None:
             select_device = {
              'ps': 'PostScript', 'eps':'EPS', 'pdf':'PDF', 'jpg':'JPEG',
