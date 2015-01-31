@@ -880,7 +880,8 @@ class AgrFile():
             arguments should be passed True (e.g. grayscale=True).
         """
         assert self.xmgrace is not None, "xmgrace executable not found"
-        extension = os.path.splitext(filename)[1][1:]
+        basename, extension = os.path.splitext(filename)
+        extension = extension[1:] # drop the dot from the file extension
         if device is None:
             select_device = {
              'ps': 'PostScript', 'eps':'EPS', 'pdf':'PDF', 'jpg':'JPEG',
@@ -891,6 +892,19 @@ class AgrFile():
             except KeyError:
                 logging.error("Could not determine output device")
                 return
+        epstopdf = None # epstopdf executable
+        if device == 'PDF' and 'PDF' not in self.devices():
+            # we replace the
+            epstopdf = which('epstopdf')
+            if epstopdf is not None:
+                device = 'EPS'
+                pdf_filename = filename
+                filename = "%s.%s" % (basename, 'eps')
+                print >> sys.stdout, "WARNING: xmgrace is installed without " \
+                      "the PDF terminal. Will use epstopdf to generate pdf."
+        if device not in self.devices():
+            raise ValueError("Unknown device %s. Availables devices are: %s"
+                             % (device, ", ".join(self.devices())))
         with tempfile.NamedTemporaryFile(suffix=".cmd", delete=False) \
         as batchfile:
             if write_batch is not None:
@@ -922,6 +936,13 @@ class AgrFile():
             shutil.copy(batchfile.name, write_batch)
         os.unlink(batchfile.name)
         os.unlink(tmpfile.name)
+        if epstopdf is not None:
+            # epstopdf is set only if a pdf file was requested, but no PDF
+            # terminal was available. Must convert filename -> pdf_filename.
+            command = [epstopdf, '--outfile=%s' % pdf_filename, filename]
+            print " ".join(command)
+            call(command)
+            os.unlink(filename)
 
     def edit_header(self):
         """ Load header_lines in EDITOR for editing"""
