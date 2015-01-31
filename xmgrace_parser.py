@@ -259,6 +259,17 @@ class AgrFile():
         lines.extend(map(str, self.datasets))
         return ''.join(lines)
 
+    def _repr_png_(self):
+        """ Return png data for the plot. This allows the object to be
+            displayed in the IPpython notebook
+        """
+        from IPython.display import Image
+        filename = temp_file_name('png')
+        self.hardcopy(filename, device='PNG', quiet=True)
+        ip_img = Image(filename=filename, format='png', embed=True)
+        os.unlink(filename)
+        return ip_img._repr_png_()
+
     def __iter__(self):
         """ Return iterator for all the lines in the agr file"""
         return StringIO(str(self))
@@ -860,8 +871,8 @@ class AgrFile():
                 # the next line will be the device list
                 found_devices = True
 
-    def hardcopy(self, filename, device=None, dpi=300, write_batch=None,
-    **kwargs):
+    def hardcopy(self, filename, device=None, dpi=300, quiet=False,
+    write_batch=None, **kwargs):
         """ Create a hardcopy for the current plot.
 
             Arguments:
@@ -870,6 +881,7 @@ class AgrFile():
                           `xmgrace -version`. If no device is given, it is
                           determined from the extension of `filename`
             dpi         : Output resolution
+            quiet       : If True, do not print any output
             write_batch : If given, name of batchfile that is to be written.
                           Using the batchfile with xmgrace directly will then
                           allow to produce a hardcopy directly
@@ -900,8 +912,10 @@ class AgrFile():
                 device = 'EPS'
                 pdf_filename = filename
                 filename = "%s.%s" % (basename, 'eps')
-                print >> sys.stdout, "WARNING: xmgrace is installed without " \
-                      "the PDF terminal. Will use epstopdf to generate pdf."
+                if not quiet:
+                    print >> sys.stdout, "WARNING: xmgrace is installed " \
+                        "without the PDF terminal. Will use epstopdf to " \
+                        "generate pdf."
         if device not in self.devices():
             raise ValueError("Unknown device %s. Availables devices are: %s"
                              % (device, ", ".join(self.devices())))
@@ -929,9 +943,11 @@ class AgrFile():
             command = [self.gracebat, '-hardcopy', '-nosafe',
                        '-hdevice', device, '-printfile', filename,
                        '-batch', batchfile.name, tmpfile.name]
-            print " ".join(command)
+            if not quiet:
+                print " ".join(command)
             call(command)
-            print "Written hardcopy to %s" % filename
+            if not quiet:
+                print "Written hardcopy to %s" % filename
         if write_batch is not None:
             shutil.copy(batchfile.name, write_batch)
         os.unlink(batchfile.name)
@@ -940,7 +956,8 @@ class AgrFile():
             # epstopdf is set only if a pdf file was requested, but no PDF
             # terminal was available. Must convert filename -> pdf_filename.
             command = [epstopdf, '--outfile=%s' % pdf_filename, filename]
-            print " ".join(command)
+            if not quiet:
+                print " ".join(command)
             call(command)
             os.unlink(filename)
 
@@ -2286,6 +2303,18 @@ def grace2tex(string, print_string=True):
         print string
     else:
         return string
+
+
+def temp_file_name(suffix):
+    """ Return the name of a temporary file, with the given suffix. The file is
+        guaranteed to *not* exist.
+    """
+    if not suffix.startswith('.'):
+        suffix = '.' + suffix
+    fh = tempfile.NamedTemporaryFile(suffix=suffix, delete=True)
+    filename = fh.name
+    fh.close()
+    return filename
 
 
 ############################### Exceptions ####################################
