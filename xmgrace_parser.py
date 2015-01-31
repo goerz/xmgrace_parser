@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ############################################################################
-#    Copyright (C) 2013 by Michael Goerz                                   #
+#    Copyright (C) 2015 by Michael Goerz                                   #
 #    http://michaelgoerz.net
 #                                                                          #
 #    This program is free software; you can redistribute it and/or modify  #
@@ -124,7 +124,8 @@ import re
 import logging
 from StringIO import StringIO
 import sys, tempfile, os
-from subprocess import call
+import subprocess
+from subprocess import call, check_output
 import numpy as np
 from datetime import datetime
 import shutil
@@ -141,7 +142,6 @@ DEFAULT_UNIT = 'cm'
 # TODO: add methods/dictionary interface to other objects
 # TODO: test with all agr files I can come across
 # TODO: Implement AgrFontDict and AgrPalette structures
-# TODO: make pip installable (with script hook)
 
 ############################### Main Class ####################################
 
@@ -846,6 +846,19 @@ class AgrFile():
         self.parse(tmpfile.name)
         self.filename = filename
         os.unlink(tmpfile.name)
+
+    def devices(self):
+        """ Return a list of devices supported by the currently used xmgrace
+        """
+        command = [self.gracebat, '-v']
+        output = check_output(command, stderr=subprocess.STDOUT)
+        found_devices = False
+        for line in output.split("\n"):
+            if found_devices:
+                return line.split()
+            if line.startswith("Registered devices:"):
+                # the next line will be the device list
+                found_devices = True
 
     def hardcopy(self, filename, device=None, dpi=300, write_batch=None,
     **kwargs):
